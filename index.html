@@ -253,6 +253,28 @@ select.inp option{background:#fff;}
     </div>
     <div id="recent-list"><div style="color:var(--muted3);font-size:12px">No entries yet.</div></div>
   </div>
+
+  <!-- AI quick-access on Overview -->
+  <div class="card">
+    <div class="section-label">AI Analysis</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:12px">Pick a topic, copy the prompt, paste into claude.ai.</div>
+    <div style="margin-bottom:12px">
+      <span class="ai-chip active" onclick="selectChip(this,'summary')">📊 Summary</span>
+      <span class="ai-chip" onclick="selectChip(this,'savings')">💰 Save more</span>
+      <span class="ai-chip" onclick="selectChip(this,'risks')">⚠️ Risks</span>
+      <span class="ai-chip" onclick="selectChip(this,'bills')">📋 Bills</span>
+      <span class="ai-chip" onclick="selectChip(this,'forecast')">📈 Forecast</span>
+    </div>
+    <button class="ai-btn" onclick="copyPrompt()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy Prompt to Clipboard
+    </button>
+    <div id="ov-ai-copied" style="display:none;margin-top:12px;background:var(--income-bg);border:1px solid var(--income-border);border-radius:var(--radius-sm);padding:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--income);margin-bottom:4px">✓ Prompt copied!</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px">Open claude.ai and paste.</div>
+      <button onclick="window.open('https://claude.ai','_blank')" style="width:100%;border:none;border-radius:var(--radius-sm);padding:9px;background:var(--income);color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Open Claude →</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ ADD ENTRY ══ -->
@@ -1107,15 +1129,24 @@ function buildPrompt(){
 function copyPrompt(){
   if(entries.length===0&&billsTotal()===0){toast("Add some data first","#d97706");return;}
   const prompt=buildPrompt();
-  navigator.clipboard.writeText(prompt).then(()=>{
-    document.getElementById("ai-copied").style.display="block";
-    document.getElementById("ai-preview").style.display="block";
-    document.getElementById("ai-preview-text").textContent=prompt;
+  function onCopied(){
+    // Show confirmation on AI tab
+    const aiCopied=document.getElementById("ai-copied");
+    const aiPreview=document.getElementById("ai-preview");
+    if(aiCopied){aiCopied.style.display="block";}
+    if(aiPreview){aiPreview.style.display="block";document.getElementById("ai-preview-text").textContent=prompt;}
+    // Show confirmation on Overview card too
+    const ovCopied=document.getElementById("ov-ai-copied");
+    if(ovCopied){ovCopied.style.display="block";}
     toast("Prompt copied ✓","#2d7a4f");
-  }).catch(()=>{
+  }
+  navigator.clipboard.writeText(prompt).then(onCopied).catch(()=>{
     const ta=document.createElement("textarea");ta.value=prompt;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();
-    try{document.execCommand("copy");document.getElementById("ai-copied").style.display="block";document.getElementById("ai-preview").style.display="block";document.getElementById("ai-preview-text").textContent=prompt;toast("Copied ✓","#2d7a4f");}
-    catch(e){document.getElementById("ai-preview").style.display="block";document.getElementById("ai-preview-text").textContent=prompt;toast("See preview — copy manually","#d97706");}
+    try{document.execCommand("copy");onCopied();}
+    catch(e){
+      const aiPreview=document.getElementById("ai-preview");if(aiPreview){aiPreview.style.display="block";document.getElementById("ai-preview-text").textContent=prompt;}
+      toast("See AI tab — copy manually","#d97706");
+    }
     document.body.removeChild(ta);
   });
 }
@@ -1137,8 +1168,19 @@ function renderAll(){renderOverview();renderBills();renderPlan();}
 
 // ── CSV ───────────────────────────────────────────────
 function exportCSV(){
-  const h="Date,Type,Category,Subcategory,Amount,Note\n",r=entries.map(e=>`${e.date},${e.type},${cat(e.catKey).label},${e.sub||""},${e.amount},"${e.note||""}"`).join("\n");
-  const b=new Blob([h+r],{type:"text/csv"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=`fintrack_${td()}.csv`;a.click();URL.revokeObjectURL(u);toast("Exported ✓","#2d7a4f");
+  const today=td();
+  const h="Date,Type,Category,Subcategory,Amount,Note\n";
+  // Logged transactions
+  const txRows=entries.map(e=>`${e.date},${e.type},${cat(e.catKey).label},${e.sub||""},${e.amount},"${e.note||""}"`);
+  // Bills as expense rows (using today's date as reference)
+  const manualRows=manualBills.map(b=>`${today},expense,Bills - Manual,${b.name},${b.amount},"Due day ${b.day} | ${b.cat}"`);
+  const autoRows=autoBills.map(b=>`${today},expense,Bills - Auto,${b.name},${b.amount},"Deduct day ${b.day} | ${b.cat}"`);
+  const loanRows=installments.map(b=>`${today},expense,Bills - Loan,${b.name},${b.monthly},"${b.monthsLeft} months left | ${b.type}"`);
+  const subRows=subscriptions.map(b=>`${today},expense,Bills - Subscription,${b.name},${b.amount},"Billing day ${b.day}"`);
+  const allRows=[...txRows,...manualRows,...autoRows,...loanRows,...subRows].join("\n");
+  const blob=new Blob([h+allRows],{type:"text/csv"}),u=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=u;a.download=`fintrack_${today}.csv`;a.click();URL.revokeObjectURL(u);
+  toast("Exported ✓ (includes bills)","#2d7a4f");
 }
 function importCSV(ev){
   const file=ev.target.files[0];if(!file)return;
