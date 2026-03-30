@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-<title>FinTrack</title>
+<title>FinTracker</title>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap');</style>
@@ -247,6 +247,14 @@ select.inp option{background:#fff;}
     <div id="cat-breakdown"><div style="color:var(--muted3);font-size:12px">No expenses yet.</div></div>
   </div>
   <div class="card">
+    <div class="section-label">Fixed Bills Breakdown</div>
+    <div id="bills-breakdown"><div style="color:var(--muted3);font-size:12px">No bills added yet.</div></div>
+  </div>
+  <div class="card">
+    <div class="section-label">Income Breakdown</div>
+    <div id="income-breakdown"><div style="color:var(--muted3);font-size:12px">No income logged yet.</div></div>
+  </div>
+  <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div class="section-label" style="margin:0">Recent</div>
       <button style="font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600" onclick="switchTab('history')">See all →</button>
@@ -301,6 +309,15 @@ select.inp option{background:#fff;}
   </div>
   <!-- Manual -->
   <div id="bills-manual">
+    <!-- Monthly reset prompt -->
+    <div id="manual-reset-banner" style="display:none;background:#fef9c3;border:1px solid #fde68a;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#854d0e;margin-bottom:4px">🗓 New month — reset checklist?</div>
+      <div style="font-size:11px;color:#92400e;margin-bottom:10px">Mark all manual bills as unpaid for <span id="reset-month-name"></span>.</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-sm btn-ghost" style="flex:1" onclick="dismissReset('manual')">Not now</button>
+        <button class="btn-sm" style="flex:1;background:#854d0e;color:#fff" onclick="confirmReset('manual')">Yes, reset</button>
+      </div>
+    </div>
     <div class="burden-card">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--muted)">Monthly manual total</span><span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--expense)" id="manual-total">₱0.00</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:var(--muted2)" id="manual-checked-label">0 of 0 paid</span><button style="font-size:10px;color:var(--muted2);background:none;border:none;cursor:pointer;font-family:inherit" onclick="resetManualChecks()">Reset</button></div>
@@ -317,12 +334,20 @@ select.inp option{background:#fff;}
           <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" type="number" id="mf-amount" inputmode="decimal"/></div>
           <div class="inp-group"><div class="inp-label">Due Day</div><input class="inp" type="number" id="mf-day" min="1" max="31" placeholder="15"/></div>
         </div>
+        <div class="inp-group"><div class="inp-label">Pay Via</div><select class="inp" id="mf-payvia" onchange="toggleMfOther()"><option value="BPI">BPI</option><option value="GCash">GCash</option><option value="GoTyme">GoTyme</option><option value="Other">Other</option></select></div>
+        <div class="inp-group" id="mf-other-wrap" style="display:none"><div class="inp-label">Specify</div><input class="inp" id="mf-other" placeholder="e.g. Maya, cash at bayad center"/></div>
         <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="toggleAddForm('manual-form')">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="addBill('manual')">Add</button></div>
       </div>
     </div>
   </div>
   <!-- Auto -->
   <div id="bills-auto" style="display:none">
+    <!-- Monthly auto-deduction reminder -->
+    <div id="auto-reset-banner" style="display:none;background:#e8f5ee;border:1px solid var(--income-border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--income);margin-bottom:4px">🤖 Auto bills deducted for <span id="auto-reset-month-name"></span></div>
+      <div style="font-size:11px;color:#166534;margin-bottom:10px">Your auto-deducted bills have been charged this month.</div>
+      <button class="btn-sm btn-ghost" style="width:100%" onclick="dismissReset('auto')">Got it</button>
+    </div>
     <div class="burden-card">
       <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--muted)">Monthly auto-deducted</span><span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--expense)" id="auto-total">₱0.00</span></div>
       <div style="display:flex;align-items:center;gap:8px"><span style="font-size:10px;color:var(--muted2)" id="auto-pct-lbl">0% of income</span><div class="ring-bar"><div class="ring-fill" id="auto-pct-bar" style="width:0%"></div></div></div>
@@ -381,10 +406,12 @@ select.inp option{background:#fff;}
       <div class="add-form">
         <div class="add-form-title">New Subscription</div>
         <div class="inp-group"><div class="inp-label">Name</div><input class="inp" id="sf-name" placeholder="e.g. Netflix, iCloud"/></div>
+        <div class="inp-group"><div class="inp-label">Billing Frequency</div><select class="inp" id="sf-freq"><option value="monthly">Monthly</option><option value="quarterly">Quarterly (every 3 months)</option><option value="yearly">Yearly (annual)</option></select></div>
         <div class="two-col">
-          <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" type="number" id="sf-amount" inputmode="decimal"/></div>
+          <div class="inp-group"><div class="inp-label">Total Amount (₱)</div><input class="inp" type="number" id="sf-amount" inputmode="decimal" placeholder="e.g. 1200 for yearly"/></div>
           <div class="inp-group"><div class="inp-label">Billing Day</div><input class="inp" type="number" id="sf-day" min="1" max="31" placeholder="1"/></div>
         </div>
+        <div style="font-size:10px;color:var(--muted2);margin-bottom:10px" id="sf-equiv-preview"></div>
         <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="toggleAddForm('subs-form')">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="addSub()">Add</button></div>
       </div>
     </div>
@@ -560,12 +587,22 @@ select.inp option{background:#fff;}
 <!-- ══ HISTORY ══ -->
 <div id="tab-history" style="display:none">
   <div class="filter-row">
-    <select class="inp" id="f-type" onchange="renderHistory()"><option value="all">All</option><option value="income">Income</option><option value="expense">Expense</option><option value="bill">Bills</option></select>
+    <select class="inp" id="f-type" onchange="renderHistory()"><option value="all">All</option><option value="income">Income</option><option value="expense">Expense</option><option value="bill">Bills only</option></select>
     <select class="inp" id="f-cat" onchange="renderHistory()"><option value="all">All Categories</option></select>
     <select class="inp" id="f-month" onchange="renderHistory()"><option value="all">All Months</option></select>
   </div>
+  <div style="font-size:10px;color:var(--muted2);margin-bottom:10px;padding:0 2px">Bills are shown at the top. Tap ✎ to edit, × to delete.</div>
   <div class="card" style="padding:4px 14px"><div id="history-list"></div></div>
   <div id="history-totals" style="display:flex;justify-content:flex-end;gap:14px;padding:8px 4px;font-size:11px"></div>
+</div>
+
+<!-- Edit Entry Modal -->
+<div id="edit-overlay" onclick="closeEditOverlay(event)" style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:400;display:none;align-items:flex-end;">
+  <div class="sheet" style="max-height:85dvh">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="edit-title">Edit Entry</div>
+    <div id="edit-body"></div>
+  </div>
 </div>
 
 <!-- ══ SETTINGS ══ -->
@@ -686,6 +723,10 @@ const DEFAULT_CATS={
   debt:{label:"Debt",emoji:"⚠️",color:"#dc2626",subs:["Interest Charges"]}
 };
 
+const BILL_ICONS={"Insurance":"🛡️","Installments":"💳","Utilities":"⚡","Condo Fees":"🏢","Subscriptions":"🔄","Other":"📋"};
+const BILL_TYPE_ICONS={manual:"🔴",auto:"🤖",install:"💳",subs:"🔄"};
+const BILL_TYPE_LABELS={manual:"Manual Bill",auto:"Auto Bill",install:"Loan",subs:"Subscription"};
+
 // ── State ──────────────────────────────────────────────
 let entries=[],manualBills=[],autoBills=[],installments=[],subscriptions=[],cats={};
 let budgets={varCap:0,savingsTarget:0,catBudgets:[]};
@@ -725,11 +766,12 @@ function td(){return new Date().toISOString().slice(0,10);}
 function cat(k){return cats[k]||{emoji:"📦",color:"#6b7280",label:k||"Other"};}
 
 // ── Bills total helpers ──────────────────────────────
+function subMonthly(s){return s.monthlyEquiv!=null?s.monthlyEquiv:(s.amount||0);}
 function billsTotal(){
   const m=manualBills.reduce((s,b)=>s+b.amount,0);
   const a=autoBills.reduce((s,b)=>s+b.amount,0);
   const i=installments.reduce((s,x)=>s+x.monthly,0);
-  const sb=subscriptions.reduce((s,b)=>s+b.amount,0);
+  const sb=subscriptions.reduce((s,b)=>s+subMonthly(b),0);
   return m+a+i+sb;
 }
 function variableTotal(){
@@ -812,8 +854,10 @@ function toggleAddForm(id){const e=document.getElementById(id);e.style.display=e
 function addBill(type){
   if(type==="manual"){
     const n=document.getElementById("mf-name").value.trim();if(!n){toast("Enter a name","#dc2626");return;}
-    manualBills.push({id:Date.now(),name:n,cat:document.getElementById("mf-cat").value,amount:parseFloat(document.getElementById("mf-amount").value)||0,day:parseInt(document.getElementById("mf-day").value)||1,done:false});
-    document.getElementById("mf-name").value="";document.getElementById("mf-amount").value="";document.getElementById("mf-day").value="";toggleAddForm("manual-form");
+    const payvia=document.getElementById("mf-payvia").value;
+    const paynote=payvia==="Other"?(document.getElementById("mf-other").value.trim()||"Other"):payvia;
+    manualBills.push({id:Date.now(),name:n,cat:document.getElementById("mf-cat").value,amount:parseFloat(document.getElementById("mf-amount").value)||0,day:parseInt(document.getElementById("mf-day").value)||1,done:false,payvia:paynote});
+    document.getElementById("mf-name").value="";document.getElementById("mf-amount").value="";document.getElementById("mf-day").value="";document.getElementById("mf-other").value="";toggleAddForm("manual-form");
   }else{
     const n=document.getElementById("af-name").value.trim();if(!n){toast("Enter a name","#dc2626");return;}
     autoBills.push({id:Date.now(),name:n,cat:document.getElementById("af-cat").value,amount:parseFloat(document.getElementById("af-amount").value)||0,day:parseInt(document.getElementById("af-day").value)||1});
@@ -830,8 +874,12 @@ function addInstallment(){
 }
 function addSub(){
   const n=document.getElementById("sf-name").value.trim();if(!n){toast("Enter a name","#dc2626");return;}
-  subscriptions.push({id:Date.now(),name:n,amount:parseFloat(document.getElementById("sf-amount").value)||0,day:parseInt(document.getElementById("sf-day").value)||1});
-  document.getElementById("sf-name").value="";document.getElementById("sf-amount").value="";document.getElementById("sf-day").value="";
+  const freq=document.getElementById("sf-freq").value;
+  const totalAmt=parseFloat(document.getElementById("sf-amount").value)||0;
+  const divisor=freq==="yearly"?12:freq==="quarterly"?3:1;
+  const monthlyEquiv=totalAmt/divisor;
+  subscriptions.push({id:Date.now(),name:n,amount:totalAmt,freq,monthlyEquiv,day:parseInt(document.getElementById("sf-day").value)||1});
+  document.getElementById("sf-name").value="";document.getElementById("sf-amount").value="";document.getElementById("sf-day").value="";document.getElementById("sf-equiv-preview").textContent="";
   toggleAddForm("subs-form");save();renderBills();renderOverview();renderPlan();toast("Added ✓","#2d7a4f");
 }
 function deleteBill(type,id){
@@ -841,6 +889,64 @@ function deleteBill(type,id){
   else subscriptions=subscriptions.filter(b=>b.id!==id);
   save();renderBills();renderOverview();renderPlan();
 }
+function toggleMfOther(){document.getElementById("mf-other-wrap").style.display=document.getElementById("mf-payvia").value==="Other"?"block":"none";}
+
+// ── Subscription preview ───────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>{
+  const sfAmt=document.getElementById("sf-amount");
+  const sfFreq=document.getElementById("sf-freq");
+  const sfPrev=document.getElementById("sf-equiv-preview");
+  function updateSubPreview(){
+    const amt=parseFloat(sfAmt?.value)||0;
+    const freq=sfFreq?.value||"monthly";
+    if(!amt){sfPrev.textContent="";return;}
+    const divisor=freq==="yearly"?12:freq==="quarterly"?3:1;
+    const mo=amt/divisor;
+    if(freq==="monthly"){sfPrev.textContent="";}
+    else{sfPrev.textContent=`≈ ${fmt(mo)}/mo (${fmt(amt)} ${freq==="yearly"?"per year":"per quarter"})`;}
+  }
+  sfAmt?.addEventListener("input",updateSubPreview);
+  sfFreq?.addEventListener("change",updateSubPreview);
+});
+
+// ── Monthly reset logic ───────────────────────────────
+function checkMonthlyResetPrompt(){
+  const now=new Date();
+  const key=`ft4_reset_${now.getFullYear()}_${now.getMonth()}`;
+  const dismissed=localStorage.getItem(key);
+  if(!dismissed){
+    const monthName=MONTHS[now.getMonth()]+" "+now.getFullYear();
+    // Show manual reset banner
+    if(manualBills.length>0){
+      document.getElementById("manual-reset-banner").style.display="block";
+      document.getElementById("reset-month-name").textContent=monthName;
+    }
+    // Show auto reminder banner
+    if(autoBills.length>0){
+      document.getElementById("auto-reset-banner").style.display="block";
+      document.getElementById("auto-reset-month-name").textContent=monthName;
+    }
+  }
+}
+function confirmReset(type){
+  if(type==="manual"){
+    manualBills.forEach(b=>b.done=false);save();renderBills();
+    document.getElementById("manual-reset-banner").style.display="none";
+    toast("Checklist reset for new month ✓","#2d7a4f");
+  }
+  const now=new Date();
+  localStorage.setItem(`ft4_reset_${now.getFullYear()}_${now.getMonth()}`,"1");
+}
+function dismissReset(type){
+  if(type==="manual") document.getElementById("manual-reset-banner").style.display="none";
+  if(type==="auto") document.getElementById("auto-reset-banner").style.display="none";
+  const now=new Date();
+  localStorage.setItem(`ft4_reset_${now.getFullYear()}_${now.getMonth()}`,"1");
+}
+
+// Call on load
+checkMonthlyResetPrompt();
+
 function toggleManualDone(id){const b=manualBills.find(b=>b.id===id);if(b){b.done=!b.done;save();renderBills();}}
 function resetManualChecks(){manualBills.forEach(b=>b.done=false);save();renderBills();toast("Reset","#6b7280");}
 
@@ -851,7 +957,6 @@ function duePill(day){
   if(diff<=3)return`<span class="due-pill due-soon">Due in ${diff}d</span>`;
   return`<span class="due-pill due-ok">Day ${day}</span>`;
 }
-const BILL_ICONS={"Insurance":"🛡️","Installments":"💳","Utilities":"⚡","Condo Fees":"🏢","Subscriptions":"🔄","Other":"📋"};
 
 function renderBills(){
   const inc=totalIncome();
@@ -861,7 +966,7 @@ function renderBills(){
   document.getElementById("manual-checked-label").textContent=`${mDone} of ${manualBills.length} paid`;
   document.getElementById("manual-prog").style.width=manualBills.length>0?(mDone/manualBills.length*100)+"%":"0%";
   const mg={};manualBills.forEach(b=>{if(!mg[b.cat])mg[b.cat]=[];mg[b.cat].push(b);});
-  document.getElementById("manual-bills-list").innerHTML=Object.keys(mg).length===0?'<div style="color:var(--muted3);font-size:12px;padding:10px 0">No manual bills yet.</div>':Object.entries(mg).map(([c,bs])=>`<div class="bill-group"><div class="bill-group-header"><span style="font-size:13px">${BILL_ICONS[c]||"📋"}</span><span class="bill-group-title">${c}</span><span class="bill-group-total">${fmt(bs.reduce((s,b)=>s+b.amount,0))}</span></div>${bs.map(b=>`<div class="bill-row"><div class="bill-check${b.done?" done":""}" onclick="toggleManualDone(${b.id})"></div><div class="bill-info"><div class="bill-name" style="${b.done?"text-decoration:line-through;color:var(--muted2)":""}">${b.name}</div><div class="bill-meta">${duePill(b.day)}</div></div><div class="bill-amount" style="${b.done?"opacity:0.4":""}">${b.amount>0?fmt(b.amount):"—"}</div><button class="del-btn" onclick="deleteBill('manual',${b.id})">×</button></div>`).join("")}</div>`).join("");
+  document.getElementById("manual-bills-list").innerHTML=Object.keys(mg).length===0?'<div style="color:var(--muted3);font-size:12px;padding:10px 0">No manual bills yet.</div>':Object.entries(mg).map(([c,bs])=>`<div class="bill-group"><div class="bill-group-header"><span style="font-size:13px">${BILL_ICONS[c]||"📋"}</span><span class="bill-group-title">${c}</span><span class="bill-group-total">${fmt(bs.reduce((s,b)=>s+b.amount,0))}</span></div>${bs.map(b=>`<div class="bill-row"><div class="bill-check${b.done?" done":""}" onclick="toggleManualDone(${b.id})"></div><div class="bill-info"><div class="bill-name" style="${b.done?"text-decoration:line-through;color:var(--muted2)":""}">${b.name}</div><div class="bill-meta" style="display:flex;align-items:center;gap:5px">${duePill(b.day)}${b.payvia?`<span style="font-size:9px;font-weight:600;color:var(--accent);background:var(--accent-light);padding:2px 7px;border-radius:4px;border:1px solid #f0d4a0">${b.payvia}</span>`:""}</div></div><div class="bill-amount" style="${b.done?"opacity:0.4":""}">${b.amount>0?fmt(b.amount):"—"}</div><button class="del-btn" onclick="deleteBill('manual',${b.id})">×</button></div>`).join("")}</div>`).join("");
   // Auto
   const aTot=autoBills.reduce((s,b)=>s+b.amount,0),aPct=inc>0?Math.min(100,(aTot/inc)*100):0;
   document.getElementById("auto-total").textContent=fmt(aTot);
@@ -879,10 +984,18 @@ function renderBills(){
     const rem=inst.monthly*inst.monthsLeft,pct=inst.total>0?Math.min(100,((inst.total-rem)/inst.total)*100):0;
     return`<div class="install-card"><div class="install-top"><div><div class="install-name">${inst.name}</div><div style="display:flex;gap:5px;margin-top:3px"><span class="tag" style="background:#fef9c3;color:#854d0e;border:1px solid #fde68a">${tLbl[inst.type]||inst.type}</span><span class="tag ${inst.mode==="auto"?"tag-auto":"tag-manual"}">${inst.mode==="auto"?"AUTO":"MANUAL"}</span></div></div><div><div class="install-monthly">${fmt(inst.monthly)}</div><div class="install-mo-lbl">/month</div></div></div><div class="install-stats"><span>${inst.monthsLeft} month${inst.monthsLeft!==1?"s":""} left</span><span>${fmt(rem)} of ${fmt(inst.total)}</span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:linear-gradient(90deg,#2d7a4f,#65a30d)"></div></div><div class="install-due">${duePill(inst.day)}<button class="del-btn" onclick="deleteBill('install',${inst.id})">×</button></div></div>`;
   }).join("");
-  // Subs
-  const sTot=subscriptions.reduce((s,b)=>s+b.amount,0);
+  // Subs — use monthlyEquiv for total
+  const sTot=subscriptions.reduce((s,b)=>s+subMonthly(b),0);
   document.getElementById("subs-total").textContent=fmt(sTot);
-  document.getElementById("subs-list").innerHTML=subscriptions.length===0?'<div style="color:var(--muted3);font-size:12px;padding:10px 0">No subscriptions yet.</div>':subscriptions.map(s=>`<div class="bill-row"><span class="tag tag-auto" style="flex-shrink:0">AUTO</span><div class="bill-info"><div class="bill-name">${s.name}</div><div class="bill-meta">${duePill(s.day)}</div></div><div class="bill-amount">${s.amount>0?fmt(s.amount):"—"}</div><button class="del-btn" onclick="deleteBill('subs',${s.id})">×</button></div>`).join("");
+  const freqLabel={monthly:"Monthly",quarterly:"Quarterly",yearly:"Yearly"};
+  const freqDiv={monthly:1,quarterly:3,yearly:12};
+  document.getElementById("subs-list").innerHTML=subscriptions.length===0?'<div style="color:var(--muted3);font-size:12px;padding:10px 0">No subscriptions yet.</div>':subscriptions.map(s=>{
+    const mo=subMonthly(s);
+    const freq=s.freq||"monthly";
+    const isRecurring=freq==="monthly";
+    const detail=isRecurring?"":`<span style="font-size:9px;color:var(--muted2)"> · ${fmt(s.amount)} ${freqLabel[freq]}</span>`;
+    return`<div class="bill-row"><span class="tag tag-auto" style="flex-shrink:0">AUTO</span><div class="bill-info"><div class="bill-name">${s.name}${detail}</div><div class="bill-meta">${duePill(s.day)} · ${freqLabel[freq]}</div></div><div style="text-align:right"><div class="bill-amount">${fmt(mo)}<span style="font-size:9px;font-weight:400;color:var(--muted2)">/mo</span></div>${!isRecurring?`<div style="font-size:9px;color:var(--muted3)">${fmt(s.amount)} per ${freq==="quarterly"?"quarter":"year"}</div>`:""}</div><button class="del-btn" onclick="deleteBill('subs',${s.id})">×</button></div>`;
+  }).join("");
 }
 
 // ── Overview ──────────────────────────────────────────
@@ -918,6 +1031,27 @@ function renderOverview(){
   document.getElementById("cat-breakdown").innerHTML=sorted.length===0?'<div style="color:var(--muted3);font-size:12px">No variable expenses yet.</div>':sorted.map(([k,amt])=>{const c=cat(k),pct=variable>0?(amt/variable)*100:0;return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span>${c.emoji}</span><span style="font-size:12px;font-weight:600">${c.label}</span></div><span style="font-size:12px;font-weight:700;color:var(--expense)">${fmt(amt)} <span style="font-weight:400;color:var(--muted2)">(${pct.toFixed(0)}%)</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${c.color}"></div></div></div>`;}).join("");
 
   document.getElementById("recent-list").innerHTML=entries.slice(0,5).length===0?'<div style="color:var(--muted3);font-size:12px">No entries yet.</div>':entries.slice(0,5).map(e=>{const c=cat(e.catKey);return`<div class="entry-row"><div class="entry-dot" style="background:${c.color}"></div><div class="entry-info"><div class="entry-cat">${c.emoji} ${c.label}</div><div class="entry-sub">${e.sub||""}${e.note?" · "+e.note:""} · ${e.date}</div></div><div class="entry-amount" style="color:${e.type==="income"?"var(--income)":"var(--expense)"}">${e.type==="income"?"+":"-"}${fmt(e.amount)}</div></div>`;}).join("");
+
+  // Fixed Bills Breakdown by category
+  const billCats={};
+  manualBills.forEach(b=>{billCats[b.cat]=(billCats[b.cat]||0)+b.amount;});
+  autoBills.forEach(b=>{billCats[b.cat]=(billCats[b.cat]||0)+b.amount;});
+  installments.forEach(b=>{const k=({mortgage:"Installments",cc:"Installments",loan:"Installments",appliance:"Installments"})[b.type]||"Installments";billCats[k]=(billCats[k]||0)+b.monthly;});
+  subscriptions.forEach(b=>{billCats["Subscriptions"]=(billCats["Subscriptions"]||0)+subMonthly(b);});
+  const billCatsSorted=Object.entries(billCats).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("bills-breakdown").innerHTML=billCatsSorted.length===0?'<div style="color:var(--muted3);font-size:12px">No bills added yet.</div>':billCatsSorted.map(([cat_name,amt])=>{
+    const pct=bills>0?(amt/bills)*100:0;
+    const icon=BILL_ICONS[cat_name]||"📋";
+    return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span>${icon}</span><span style="font-size:12px;font-weight:600">${cat_name}</span></div><span style="font-size:12px;font-weight:700;color:var(--warning)">${fmt(amt)} <span style="font-weight:400;color:var(--muted2)">(${pct.toFixed(0)}%)</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:#d97706"></div></div></div>`;
+  }).join("");
+
+  // Income Breakdown by category
+  const incByCat={};entries.filter(e=>e.type==="income").forEach(e=>{const k=e.catKey||"income";incByCat[k]=(incByCat[k]||0)+e.amount;});
+  const incSorted=Object.entries(incByCat).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("income-breakdown").innerHTML=incSorted.length===0?'<div style="color:var(--muted3);font-size:12px">No income logged yet.</div>':incSorted.map(([k,amt])=>{
+    const c=cat(k);const pct=inc>0?(amt/inc)*100:0;
+    return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span>${c.emoji}</span><span style="font-size:12px;font-weight:600">${c.label}</span></div><span style="font-size:12px;font-weight:700;color:var(--income)">${fmt(amt)} <span style="font-weight:400;color:var(--muted2)">(${pct.toFixed(0)}%)</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:var(--income)"></div></div></div>`;
+  }).join("");
 }
 
 // ── Plan ─────────────────────────────────────────────
@@ -1064,31 +1198,200 @@ function populateHistoryFilters(){
   document.getElementById("f-month").innerHTML='<option value="all">All Months</option>'+MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join("");
   document.getElementById("f-cat").innerHTML='<option value="all">All Categories</option>'+Object.entries(cats).map(([k,c])=>`<option value="${k}">${c.emoji} ${c.label}</option>`).join("");
 }
-function renderHistory(){
-  const ft=document.getElementById("f-type").value,fc=document.getElementById("f-cat").value,fm=document.getElementById("f-month").value;
-  // Include bills as "bill" type entries for history view
-  const billEntries=[
-    ...manualBills.map(b=>({id:"mb"+b.id,type:"bill",amount:b.amount,catKey:"_bill",sub:b.name,note:b.cat,date:td(),isBill:true})),
-    ...autoBills.map(b=>({id:"ab"+b.id,type:"bill",amount:b.amount,catKey:"_bill",sub:b.name,note:b.cat,date:td(),isBill:true})),
-    ...installments.map(b=>({id:"ib"+b.id,type:"bill",amount:b.monthly,catKey:"_bill",sub:b.name,note:"Loan",date:td(),isBill:true})),
-    ...subscriptions.map(b=>({id:"sb"+b.id,type:"bill",amount:b.amount,catKey:"_bill",sub:b.name,note:"Subscription",date:td(),isBill:true}))
+
+function allHistoryRows(){
+  // Bills always included, labelled by sub-type
+  const billRows=[
+    ...manualBills.map(b=>({id:b.id,type:"bill",billType:"manual",amount:b.amount,catKey:"_bill",catLabel:"Bills - Manual",sub:b.name,note:`Due day ${b.day} | ${b.cat}`,date:td()})),
+    ...autoBills.map(b=>({id:b.id,type:"bill",billType:"auto",amount:b.amount,catKey:"_bill",catLabel:"Bills - Auto",sub:b.name,note:`Deduct day ${b.day} | ${b.cat}`,date:td()})),
+    ...installments.map(b=>({id:b.id,type:"bill",billType:"install",amount:b.monthly,catKey:"_bill",catLabel:"Bills - Loan",sub:b.name,note:`${b.monthsLeft} months left | ${b.type}`,date:td()})),
+    ...subscriptions.map(b=>({id:b.id,type:"bill",billType:"subs",amount:b.amount,catKey:"_bill",catLabel:"Bills - Subscription",sub:b.name,note:`Billing day ${b.day}`,date:td()}))
   ];
-  const allEntries=[...entries,...(ft==="bill"?billEntries:[])];
-  const filtered=allEntries.filter(e=>{
-    if(ft!=="all"&&ft!=="bill"&&e.type!==ft)return false;
-    if(ft==="bill"&&e.type!=="bill"&&e.type!=="income"&&e.type!=="expense")return false;
-    if(fc!=="all"&&e.catKey!==fc)return false;
-    if(fm!=="all"&&!e.isBill&&getM(e.date)!==parseInt(fm))return false;
+  return [...billRows,...entries];
+}
+
+function renderHistory(){
+  const ft=document.getElementById("f-type").value;
+  const fc=document.getElementById("f-cat").value;
+  const fm=document.getElementById("f-month").value;
+  const all=allHistoryRows();
+  const filtered=all.filter(e=>{
+    if(ft==="bill"&&e.type!=="bill") return false;
+    if(ft==="income"&&e.type!=="income") return false;
+    if(ft==="expense"&&e.type!=="expense") return false;
+    if(ft==="all"&&false) return false; // always show all
+    if(fc!=="all"&&e.catKey!==fc) return false;
+    if(fm!=="all"&&e.type!=="bill"&&getM(e.date)!==parseInt(fm)) return false;
     return true;
   });
-  document.getElementById("history-list").innerHTML=filtered.length===0?'<div style="color:var(--muted3);font-size:12px;padding:12px 0">No entries match.</div>':filtered.slice(0,50).map(e=>{
-    if(e.isBill){return`<div class="entry-row"><div class="entry-dot" style="background:#0369a1"></div><div class="entry-info"><div class="entry-cat">📋 Bill</div><div class="entry-sub">${e.sub} · ${e.note}</div></div><div class="entry-amount" style="color:var(--expense)">-${fmt(e.amount)}</div></div>`;}
-    const c=cat(e.catKey);
-    return`<div class="entry-row"><div class="entry-dot" style="background:${c.color}"></div><div class="entry-info"><div class="entry-cat">${c.emoji} ${c.label}</div><div class="entry-sub">${e.sub||""}${e.note?" · "+e.note:""} · ${e.date}</div></div><div class="entry-amount" style="color:${e.type==="income"?"var(--income)":"var(--expense)"}">${e.type==="income"?"+":"-"}${fmt(e.amount)}</div><button class="del-btn" onclick="deleteEntry(${e.id})">×</button></div>`;
-  }).join("");
+
+
+  document.getElementById("history-list").innerHTML=filtered.length===0
+    ?'<div style="color:var(--muted3);font-size:12px;padding:12px 0">No entries match.</div>'
+    :filtered.slice(0,100).map(e=>{
+      if(e.type==="bill"){
+        const icon=BILL_TYPE_ICONS[e.billType]||"📋";
+        const lbl=BILL_TYPE_LABELS[e.billType]||"Bill";
+        return`<div class="entry-row">
+          <div class="entry-dot" style="background:#0369a1"></div>
+          <div class="entry-info">
+            <div class="entry-cat">${icon} ${lbl}</div>
+            <div class="entry-sub">${e.sub} · ${e.note}</div>
+          </div>
+          <div class="entry-amount" style="color:var(--expense)">-${fmt(e.amount)}</div>
+          <button class="del-btn" style="color:#0369a1;font-size:14px" onclick="editBill('${e.billType}',${e.id})" title="Edit">✎</button>
+          <button class="del-btn" onclick="deleteBill('${e.billType}',${e.id});renderHistory()">×</button>
+        </div>`;
+      }
+      const c=cat(e.catKey);
+      return`<div class="entry-row">
+        <div class="entry-dot" style="background:${c.color}"></div>
+        <div class="entry-info">
+          <div class="entry-cat">${c.emoji} ${c.label}</div>
+          <div class="entry-sub">${e.sub||""}${e.note?" · "+e.note:""} · ${e.date}</div>
+        </div>
+        <div class="entry-amount" style="color:${e.type==="income"?"var(--income)":"var(--expense)"}">${e.type==="income"?"+":"-"}${fmt(e.amount)}</div>
+        <button class="del-btn" style="color:var(--accent);font-size:14px" onclick="editEntry(${e.id})" title="Edit">✎</button>
+        <button class="del-btn" onclick="deleteEntry(${e.id})">×</button>
+      </div>`;
+    }).join("");
+
   const fI=filtered.filter(e=>e.type==="income").reduce((s,e)=>s+e.amount,0);
   const fE=filtered.filter(e=>e.type==="expense"||e.type==="bill").reduce((s,e)=>s+e.amount,0);
-  document.getElementById("history-totals").innerHTML=filtered.length>0?`<span style="color:var(--muted2);font-size:10px">${filtered.length} entries</span><span style="color:var(--income);font-weight:600">+${fmt(fI)}</span><span style="color:var(--expense);font-weight:600">-${fmt(fE)}</span>`:"";
+  document.getElementById("history-totals").innerHTML=filtered.length>0
+    ?`<span style="color:var(--muted2);font-size:10px">${filtered.length} entries</span><span style="color:var(--income);font-weight:600">+${fmt(fI)}</span><span style="color:var(--expense);font-weight:600">-${fmt(fE)}</span>`:"";
+}
+
+// ── Edit Entry ────────────────────────────────────────
+function closeEditOverlay(e){if(e.target===document.getElementById("edit-overlay"))document.getElementById("edit-overlay").style.display="none";}
+function closeEdit(){document.getElementById("edit-overlay").style.display="none";}
+
+function editEntry(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  document.getElementById("edit-title").textContent="Edit Entry";
+  // Build category options
+  const catOpts=e.type==="income"?[["income",cats.income]]:Object.entries(cats).filter(([k])=>k!=="income");
+  const catHtml=catOpts.map(([k,c])=>`<option value="${k}" ${k===e.catKey?"selected":""}>${c.emoji} ${c.label}</option>`).join("");
+  const subHtml=(cats[e.catKey]?.subs||[]).map(s=>`<option ${s===e.sub?"selected":""}>${s}</option>`).join("");
+  document.getElementById("edit-body").innerHTML=`
+    <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" id="ee-amount" type="number" value="${e.amount}" inputmode="decimal"/></div>
+    <div class="inp-group"><div class="inp-label">Category</div><select class="inp" id="ee-cat" onchange="refreshEditSubs(${id})">${catHtml}</select></div>
+    <div class="inp-group"><div class="inp-label">Subcategory</div><select class="inp" id="ee-sub">${subHtml}</select></div>
+    <div class="inp-group"><div class="inp-label">Date</div><input class="inp" type="date" id="ee-date" value="${e.date}"/></div>
+    <div class="inp-group"><div class="inp-label">Note</div><input class="inp" type="text" id="ee-note" value="${e.note||""}"/></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn-sm btn-ghost" onclick="closeEdit()">Cancel</button>
+      <button class="btn-sm btn-accent" style="flex:1" onclick="saveEditEntry(${id})">Save Changes</button>
+    </div>`;
+  document.getElementById("edit-overlay").style.display="flex";
+}
+
+function refreshEditSubs(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const k=document.getElementById("ee-cat").value;
+  const s=document.getElementById("ee-sub");
+  s.innerHTML=(cats[k]?.subs||[]).map(x=>`<option>${x}</option>`).join("");
+}
+
+function saveEditEntry(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const amt=parseFloat(document.getElementById("ee-amount").value);
+  if(!amt||amt<=0){toast("Enter a valid amount","#dc2626");return;}
+  e.amount=amt;
+  e.catKey=document.getElementById("ee-cat").value;
+  e.sub=document.getElementById("ee-sub").value;
+  e.date=document.getElementById("ee-date").value;
+  e.note=document.getElementById("ee-note").value.trim();
+  save();closeEdit();renderAll();renderHistory();toast("Entry updated ✓","#2d7a4f");
+}
+
+// ── Edit Bill ─────────────────────────────────────────
+function editBill(billType,id){
+  let item,fields="";
+  if(billType==="manual"){
+    item=manualBills.find(b=>b.id===id);if(!item)return;
+    document.getElementById("edit-title").textContent="Edit Manual Bill";
+    const pv=item.payvia||"BPI";
+    const isOther=!["BPI","GCash","GoTyme"].includes(pv);
+    fields=`
+      <div class="inp-group"><div class="inp-label">Name</div><input class="inp" id="eb-name" value="${item.name}"/></div>
+      <div class="inp-group"><div class="inp-label">Category</div><select class="inp" id="eb-cat"><option ${item.cat==="Insurance"?"selected":""}>Insurance</option><option ${item.cat==="Installments"?"selected":""}>Installments</option><option ${item.cat==="Utilities"?"selected":""}>Utilities</option><option ${item.cat==="Condo Fees"?"selected":""}>Condo Fees</option><option ${item.cat==="Other"?"selected":""}>Other</option></select></div>
+      <div class="two-col">
+        <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" type="number" id="eb-amount" value="${item.amount}" inputmode="decimal"/></div>
+        <div class="inp-group"><div class="inp-label">Due Day</div><input class="inp" type="number" id="eb-day" value="${item.day}" min="1" max="31"/></div>
+      </div>
+      <div class="inp-group"><div class="inp-label">Pay Via</div><select class="inp" id="eb-payvia" onchange="document.getElementById('eb-other-wrap').style.display=this.value==='Other'?'block':'none'"><option ${!isOther&&pv==="BPI"?"selected":""}>BPI</option><option ${!isOther&&pv==="GCash"?"selected":""}>GCash</option><option ${!isOther&&pv==="GoTyme"?"selected":""}>GoTyme</option><option value="Other" ${isOther?"selected":""}>Other</option></select></div>
+      <div class="inp-group" id="eb-other-wrap" style="display:${isOther?"block":"none"}"><div class="inp-label">Specify</div><input class="inp" id="eb-other" value="${isOther?pv:""}"/></div>
+      <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="closeEdit()">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="saveEditBill('manual',${id})">Save</button></div>`;
+  } else if(billType==="auto"){
+    item=autoBills.find(b=>b.id===id);if(!item)return;
+    document.getElementById("edit-title").textContent="Edit Auto Bill";
+    fields=`
+      <div class="inp-group"><div class="inp-label">Name</div><input class="inp" id="eb-name" value="${item.name}"/></div>
+      <div class="inp-group"><div class="inp-label">Category</div><select class="inp" id="eb-cat"><option ${item.cat==="Insurance"?"selected":""}>Insurance</option><option ${item.cat==="Utilities"?"selected":""}>Utilities</option><option ${item.cat==="Subscriptions"?"selected":""}>Subscriptions</option><option ${item.cat==="Other"?"selected":""}>Other</option></select></div>
+      <div class="two-col">
+        <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" type="number" id="eb-amount" value="${item.amount}" inputmode="decimal"/></div>
+        <div class="inp-group"><div class="inp-label">Deduct Day</div><input class="inp" type="number" id="eb-day" value="${item.day}" min="1" max="31"/></div>
+      </div>
+      <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="closeEdit()">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="saveEditBill('auto',${id})">Save</button></div>`;
+  } else if(billType==="install"){
+    item=installments.find(b=>b.id===id);if(!item)return;
+    document.getElementById("edit-title").textContent="Edit Loan / Installment";
+    const tLbl={mortgage:"Mortgage",cc:"CC Installment",loan:"Personal Loan",appliance:"Appliance/Gadget"};
+    fields=`
+      <div class="inp-group"><div class="inp-label">Name</div><input class="inp" id="eb-name" value="${item.name}"/></div>
+      <div class="two-col">
+        <div class="inp-group"><div class="inp-label">Monthly (₱)</div><input class="inp" type="number" id="eb-monthly" value="${item.monthly}" inputmode="decimal"/></div>
+        <div class="inp-group"><div class="inp-label">Months Left</div><input class="inp" type="number" id="eb-months" value="${item.monthsLeft}" inputmode="numeric"/></div>
+      </div>
+      <div class="two-col">
+        <div class="inp-group"><div class="inp-label">Total Amount (₱)</div><input class="inp" type="number" id="eb-total" value="${item.total}" inputmode="decimal"/></div>
+        <div class="inp-group"><div class="inp-label">Due Day</div><input class="inp" type="number" id="eb-day" value="${item.day}" min="1" max="31"/></div>
+      </div>
+      <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="closeEdit()">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="saveEditBill('install',${id})">Save</button></div>`;
+  } else if(billType==="subs"){
+    item=subscriptions.find(b=>b.id===id);if(!item)return;
+    document.getElementById("edit-title").textContent="Edit Subscription";
+    fields=`
+      <div class="inp-group"><div class="inp-label">Name</div><input class="inp" id="eb-name" value="${item.name}"/></div>
+      <div class="two-col">
+        <div class="inp-group"><div class="inp-label">Amount (₱)</div><input class="inp" type="number" id="eb-amount" value="${item.amount}" inputmode="decimal"/></div>
+        <div class="inp-group"><div class="inp-label">Billing Day</div><input class="inp" type="number" id="eb-day" value="${item.day}" min="1" max="31"/></div>
+      </div>
+      <div style="display:flex;gap:8px"><button class="btn-sm btn-ghost" onclick="closeEdit()">Cancel</button><button class="btn-sm btn-accent" style="flex:1" onclick="saveEditBill('subs',${id})">Save</button></div>`;
+  }
+  document.getElementById("edit-body").innerHTML=fields;
+  document.getElementById("edit-overlay").style.display="flex";
+}
+
+function saveEditBill(billType,id){
+  const name=document.getElementById("eb-name")?.value.trim();
+  if(billType==="manual"){
+    const b=manualBills.find(b=>b.id===id);if(!b)return;
+    b.name=name;b.cat=document.getElementById("eb-cat").value;
+    b.amount=parseFloat(document.getElementById("eb-amount").value)||0;
+    b.day=parseInt(document.getElementById("eb-day").value)||1;
+    const pv=document.getElementById("eb-payvia").value;
+    b.payvia=pv==="Other"?(document.getElementById("eb-other")?.value.trim()||"Other"):pv;
+  } else if(billType==="auto"){
+    const b=autoBills.find(b=>b.id===id);if(!b)return;
+    b.name=name;b.cat=document.getElementById("eb-cat").value;
+    b.amount=parseFloat(document.getElementById("eb-amount").value)||0;
+    b.day=parseInt(document.getElementById("eb-day").value)||1;
+  } else if(billType==="install"){
+    const b=installments.find(b=>b.id===id);if(!b)return;
+    b.name=name;
+    b.monthly=parseFloat(document.getElementById("eb-monthly").value)||0;
+    b.monthsLeft=parseInt(document.getElementById("eb-months").value)||0;
+    b.total=parseFloat(document.getElementById("eb-total").value)||0;
+    b.day=parseInt(document.getElementById("eb-day").value)||1;
+  } else if(billType==="subs"){
+    const b=subscriptions.find(b=>b.id===id);if(!b)return;
+    b.name=name;
+    b.amount=parseFloat(document.getElementById("eb-amount").value)||0;
+    b.day=parseInt(document.getElementById("eb-day").value)||1;
+  }
+  save();closeEdit();renderAll();renderHistory();toast("Bill updated ✓","#2d7a4f");
 }
 
 // ── Settings ──────────────────────────────────────────
@@ -1159,7 +1462,7 @@ function switchTab(tab){
   });
   document.getElementById("bottom-nav").style.display=tab==="settings"?"none":"flex";
   if(tab==="add")setTimeout(()=>document.getElementById("inp-amount").focus(),100);
-  if(tab==="bills")setBillsTab(billsTab);
+  if(tab==="bills"){renderBills();setBillsTab(billsTab);}
   if(tab==="plan"){setPlanTab(planTab);renderPlan();}
   if(tab==="settings")renderSettings();
   if(tab==="history")renderHistory();
@@ -1170,15 +1473,11 @@ function renderAll(){renderOverview();renderBills();renderPlan();}
 function exportCSV(){
   const today=td();
   const h="Date,Type,Category,Subcategory,Amount,Note\n";
-  // Logged transactions
-  const txRows=entries.map(e=>`${e.date},${e.type},${cat(e.catKey).label},${e.sub||""},${e.amount},"${e.note||""}"`);
-  // Bills as expense rows (using today's date as reference)
-  const manualRows=manualBills.map(b=>`${today},expense,Bills - Manual,${b.name},${b.amount},"Due day ${b.day} | ${b.cat}"`);
-  const autoRows=autoBills.map(b=>`${today},expense,Bills - Auto,${b.name},${b.amount},"Deduct day ${b.day} | ${b.cat}"`);
-  const loanRows=installments.map(b=>`${today},expense,Bills - Loan,${b.name},${b.monthly},"${b.monthsLeft} months left | ${b.type}"`);
-  const subRows=subscriptions.map(b=>`${today},expense,Bills - Subscription,${b.name},${b.amount},"Billing day ${b.day}"`);
-  const allRows=[...txRows,...manualRows,...autoRows,...loanRows,...subRows].join("\n");
-  const blob=new Blob([h+allRows],{type:"text/csv"}),u=URL.createObjectURL(blob),a=document.createElement("a");
+  const rows=allHistoryRows().map(e=>{
+    if(e.type==="bill") return `${today},expense,${e.catLabel},"${e.sub}",${e.amount},"${e.note}"`;
+    return `${e.date},${e.type},${cat(e.catKey).label},"${e.sub||""}",${e.amount},"${e.note||""}"`;
+  }).join("\n");
+  const blob=new Blob([h+rows],{type:"text/csv"}),u=URL.createObjectURL(blob),a=document.createElement("a");
   a.href=u;a.download=`fintrack_${today}.csv`;a.click();URL.revokeObjectURL(u);
   toast("Exported ✓ (includes bills)","#2d7a4f");
 }
