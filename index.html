@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
-<title>FinTracker</title>
+<title>FinTrack</title>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap');</style>
@@ -204,85 +204,141 @@ select.inp option{background:#fff;}
 
 <!-- ══ OVERVIEW ══ -->
 <div id="tab-overview">
-  <div class="net-card">
-    <svg width="66" height="66" viewBox="0 0 72 72">
-      <circle cx="36" cy="36" r="28" fill="none" stroke="#e8e4de" stroke-width="6"/>
-      <circle id="savings-ring" cx="36" cy="36" r="28" fill="none" stroke="#c17f3a" stroke-width="6" stroke-linecap="round" stroke-dasharray="175.93" stroke-dashoffset="175.93" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 0.6s ease"/>
-      <text x="36" y="32" text-anchor="middle" fill="#c17f3a" font-family="Playfair Display,serif" font-size="11" font-weight="700" id="ring-pct">0%</text>
-      <text x="36" y="44" text-anchor="middle" fill="#a09890" font-family="Plus Jakarta Sans,sans-serif" font-size="7">saved</text>
-    </svg>
-    <div style="flex:1">
-      <div class="kpi-label">Net Savings</div>
-      <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700" id="kpi-net">₱0.00</div>
-      <div style="font-size:10px;color:var(--muted2);margin-top:3px" id="kpi-entries">0 transactions</div>
-    </div>
-  </div>
-  <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Income</div><div class="kpi-val" style="color:var(--income)" id="kpi-income">₱0.00</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Expenses</div><div class="kpi-val" style="color:var(--expense)" id="kpi-expense">₱0.00</div></div>
-  </div>
-  <!-- Expense breakdown: bills vs variable -->
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-label">Fixed Bills</div>
-      <div class="kpi-val" style="color:var(--warning);font-size:17px" id="kpi-bills">₱0.00</div>
-      <div style="font-size:9px;color:var(--muted2);margin-top:2px">auto-counted</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Variable Spend</div>
-      <div class="kpi-val" style="color:var(--expense);font-size:17px" id="kpi-variable">₱0.00</div>
-      <div style="font-size:9px;color:var(--muted2);margin-top:2px">logged entries</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="section-label">Monthly Overview</div>
-    <div class="bar-chart" id="bar-chart"></div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:var(--income)"></div>Income</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--expense)"></div>Total Expenses</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="section-label">Spending by Category</div>
-    <div id="cat-breakdown"><div style="color:var(--muted3);font-size:12px">No expenses yet.</div></div>
-  </div>
-  <div class="card">
-    <div class="section-label">Fixed Bills Breakdown</div>
-    <div id="bills-breakdown"><div style="color:var(--muted3);font-size:12px">No bills added yet.</div></div>
-  </div>
-  <div class="card">
-    <div class="section-label">Income Breakdown</div>
-    <div id="income-breakdown"><div style="color:var(--muted3);font-size:12px">No income logged yet.</div></div>
-  </div>
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div class="section-label" style="margin:0">Recent</div>
-      <button style="font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600" onclick="switchTab('history')">See all →</button>
-    </div>
-    <div id="recent-list"><div style="color:var(--muted3);font-size:12px">No entries yet.</div></div>
+
+  <!-- View toggle -->
+  <div style="display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:14px;">
+    <button id="ov-toggle-month" onclick="setOverviewView('month')" style="flex:1;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;padding:9px;background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.1);">This Month</button>
+    <button id="ov-toggle-year" onclick="setOverviewView('year')" style="flex:1;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;padding:9px;background:none;color:var(--muted);">This Year</button>
   </div>
 
-  <!-- AI quick-access on Overview -->
-  <div class="card">
-    <div class="section-label">AI Analysis</div>
-    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:12px">Pick a topic, copy the prompt, paste into claude.ai.</div>
-    <div style="margin-bottom:12px">
-      <span class="ai-chip active" onclick="selectChip(this,'summary')">📊 Summary</span>
-      <span class="ai-chip" onclick="selectChip(this,'savings')">💰 Save more</span>
-      <span class="ai-chip" onclick="selectChip(this,'risks')">⚠️ Risks</span>
-      <span class="ai-chip" onclick="selectChip(this,'bills')">📋 Bills</span>
-      <span class="ai-chip" onclick="selectChip(this,'forecast')">📈 Forecast</span>
+  <!-- ── MONTHLY VIEW ── -->
+  <div id="ov-monthly">
+    <div class="net-card">
+      <svg width="66" height="66" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r="28" fill="none" stroke="#e8e4de" stroke-width="6"/>
+        <circle id="savings-ring" cx="36" cy="36" r="28" fill="none" stroke="#c17f3a" stroke-width="6" stroke-linecap="round" stroke-dasharray="175.93" stroke-dashoffset="175.93" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 0.6s ease"/>
+        <text x="36" y="32" text-anchor="middle" fill="#c17f3a" font-family="Playfair Display,serif" font-size="11" font-weight="700" id="ring-pct">0%</text>
+        <text x="36" y="44" text-anchor="middle" fill="#a09890" font-family="Plus Jakarta Sans,sans-serif" font-size="7">saved</text>
+      </svg>
+      <div style="flex:1">
+        <div class="kpi-label">Net Savings</div>
+        <div style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700" id="kpi-net">₱0.00</div>
+        <div style="font-size:10px;color:var(--muted2);margin-top:3px" id="kpi-entries">0 transactions</div>
+      </div>
     </div>
-    <button class="ai-btn" onclick="copyPrompt()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-      Copy Prompt to Clipboard
-    </button>
-    <div id="ov-ai-copied" style="display:none;margin-top:12px;background:var(--income-bg);border:1px solid var(--income-border);border-radius:var(--radius-sm);padding:12px">
-      <div style="font-size:12px;font-weight:700;color:var(--income);margin-bottom:4px">✓ Prompt copied!</div>
-      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px">Open claude.ai and paste.</div>
-      <button onclick="window.open('https://claude.ai','_blank')" style="width:100%;border:none;border-radius:var(--radius-sm);padding:9px;background:var(--income);color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Open Claude →</button>
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Income</div><div class="kpi-val" style="color:var(--income)" id="kpi-income">₱0.00</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total Expenses</div><div class="kpi-val" style="color:var(--expense)" id="kpi-expense">₱0.00</div></div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Fixed Bills</div>
+        <div class="kpi-val" style="color:var(--warning);font-size:17px" id="kpi-bills">₱0.00</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">auto-counted</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Variable Spend</div>
+        <div class="kpi-val" style="color:var(--expense);font-size:17px" id="kpi-variable">₱0.00</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:2px">logged entries</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Monthly Overview</div>
+      <div class="bar-chart" id="bar-chart"></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--income)"></div>Income</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--expense)"></div>Total Expenses</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-label">Spending by Category</div>
+      <div id="cat-breakdown"><div style="color:var(--muted3);font-size:12px">No expenses yet.</div></div>
+    </div>
+    <div class="card">
+      <div class="section-label">Fixed Bills Breakdown</div>
+      <div id="bills-breakdown"><div style="color:var(--muted3);font-size:12px">No bills added yet.</div></div>
+    </div>
+    <div class="card">
+      <div class="section-label">Income Breakdown</div>
+      <div id="income-breakdown"><div style="color:var(--muted3);font-size:12px">No income logged yet.</div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="section-label" style="margin:0">Recent</div>
+        <button style="font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600" onclick="switchTab('history')">See all →</button>
+      </div>
+      <div id="recent-list"><div style="color:var(--muted3);font-size:12px">No entries yet.</div></div>
+    </div>
+    <div class="card">
+      <div class="section-label">AI Analysis</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:12px">Pick a topic, copy the prompt, paste into claude.ai.</div>
+      <div style="margin-bottom:12px">
+        <span class="ai-chip active" onclick="selectChip(this,'summary')">📊 Summary</span>
+        <span class="ai-chip" onclick="selectChip(this,'savings')">💰 Save more</span>
+        <span class="ai-chip" onclick="selectChip(this,'risks')">⚠️ Risks</span>
+        <span class="ai-chip" onclick="selectChip(this,'bills')">📋 Bills</span>
+        <span class="ai-chip" onclick="selectChip(this,'forecast')">📈 Forecast</span>
+      </div>
+      <button class="ai-btn" onclick="copyPrompt()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy Prompt to Clipboard
+      </button>
+      <div id="ov-ai-copied" style="display:none;margin-top:12px;background:var(--income-bg);border:1px solid var(--income-border);border-radius:var(--radius-sm);padding:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--income);margin-bottom:4px">✓ Prompt copied!</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px">Open claude.ai and paste.</div>
+        <button onclick="window.open('https://claude.ai','_blank')" style="width:100%;border:none;border-radius:var(--radius-sm);padding:9px;background:var(--income);color:#fff;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">Open Claude →</button>
+      </div>
     </div>
   </div>
+
+  <!-- ── YEARLY VIEW ── -->
+  <div id="ov-yearly" style="display:none">
+    <!-- KPIs -->
+    <div class="kpi-grid" style="margin-bottom:10px">
+      <div class="kpi-card"><div class="kpi-label">YTD Income</div><div class="kpi-val" style="color:var(--income);font-size:18px" id="yr-income">₱0.00</div></div>
+      <div class="kpi-card"><div class="kpi-label">YTD Net Savings</div><div class="kpi-val" style="font-size:18px" id="yr-net">₱0.00</div></div>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:14px">
+      <div class="kpi-card"><div class="kpi-label">YTD Fixed Bills</div><div class="kpi-val" style="color:var(--warning);font-size:17px" id="yr-bills">₱0.00</div></div>
+      <div class="kpi-card"><div class="kpi-label">YTD Variable</div><div class="kpi-val" style="color:var(--expense);font-size:17px" id="yr-variable">₱0.00</div></div>
+    </div>
+
+    <!-- Pie Chart Card -->
+    <div class="card">
+      <!-- Breadcrumb / back nav -->
+      <div id="pie-nav" style="display:none;align-items:center;gap:8px;margin-bottom:12px">
+        <button onclick="pieDrillBack()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;line-height:1">←</button>
+        <span id="pie-breadcrumb" style="font-size:11px;color:var(--muted);font-weight:600"></span>
+      </div>
+      <div id="pie-title" style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:12px">Yearly Breakdown</div>
+
+      <!-- SVG Pie -->
+      <div style="display:flex;justify-content:center;margin-bottom:16px">
+        <div style="position:relative;width:220px;height:220px">
+          <svg id="pie-svg" width="220" height="220" viewBox="0 0 220 220" style="cursor:pointer"></svg>
+          <div id="pie-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+            <div id="pie-center-label" style="font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.06em;text-transform:uppercase">Net Savings</div>
+            <div id="pie-center-value" style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--accent)">₱0</div>
+            <div id="pie-center-pct" style="font-size:10px;color:var(--muted2)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend / slice list -->
+      <div id="pie-legend"></div>
+    </div>
+
+    <!-- Yearly bar chart -->
+    <div class="card">
+      <div class="section-label">Month by Month</div>
+      <div class="bar-chart" id="yr-bar-chart"></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--income)"></div>Income</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--expense)"></div>Expenses</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ══ ADD ENTRY ══ -->
@@ -1000,7 +1056,13 @@ function renderBills(){
 
 // ── Overview ──────────────────────────────────────────
 function renderOverview(){
-  const inc=totalIncome(),bills=billsTotal(),variable=variableTotal(),exp=bills+variable,net=inc-exp;
+  const nowM=new Date().getMonth(),nowY=new Date().getFullYear();
+  const isThisMonth=e=>getM(e.date)===nowM&&new Date(e.date).getFullYear()===nowY;
+
+  const inc=entries.filter(e=>e.type==="income"&&isThisMonth(e)).reduce((s,e)=>s+e.amount,0);
+  const variable=entries.filter(e=>e.type==="expense"&&isThisMonth(e)).reduce((s,e)=>s+e.amount,0);
+  const bills=billsTotal();
+  const exp=bills+variable,net=inc-exp;
   const rate=inc>0?Math.max(0,Math.min(100,(net/inc)*100)):0;
 
   document.getElementById("kpi-income").textContent=fmt(inc);
@@ -1009,7 +1071,7 @@ function renderOverview(){
   document.getElementById("kpi-variable").textContent=fmt(variable);
   document.getElementById("kpi-net").textContent=fmt(net);
   document.getElementById("kpi-net").style.color=net>=0?"var(--income)":"var(--danger)";
-  document.getElementById("kpi-entries").textContent=entries.length+" transaction"+(entries.length!==1?"s":" ")+" + "+[manualBills,autoBills,installments,subscriptions].flat().length+" bills";
+  document.getElementById("kpi-entries").textContent=MONTHS[nowM]+" · "+entries.filter(isThisMonth).length+" transactions";
 
   const circ=175.93;
   document.getElementById("savings-ring").setAttribute("stroke-dashoffset",circ-(circ*rate/100));
@@ -1025,8 +1087,8 @@ function renderOverview(){
   const mx=Math.max(...mo.map(d=>Math.max(d.inc,d.exp)),1),now=new Date().getMonth();
   document.getElementById("bar-chart").innerHTML=mo.map(({m,inc,exp},i)=>`<div class="bar-col"><div class="bar-inner"><div class="bar" style="flex:1;background:var(--income);height:${(inc/mx)*100}%;opacity:${inc===0?0.15:i===now?1:0.6}"></div><div class="bar" style="flex:1;background:var(--expense);height:${(exp/mx)*100}%;opacity:${exp===0?0.15:i===now?1:0.6}"></div></div><div class="bar-lbl" style="${i===now?"color:var(--accent);font-weight:700":""}">${m}</div></div>`).join("");
 
-  // Category breakdown (variable entries only — bills shown separately)
-  const bycat={};entries.filter(e=>e.type==="expense").forEach(e=>{const k=e.catKey||"other";bycat[k]=(bycat[k]||0)+e.amount;});
+  // Category breakdown — current month variable entries only
+  const bycat={};entries.filter(e=>e.type==="expense"&&isThisMonth(e)).forEach(e=>{const k=e.catKey||"other";bycat[k]=(bycat[k]||0)+e.amount;});
   const sorted=Object.entries(bycat).sort((a,b)=>b[1]-a[1]);
   document.getElementById("cat-breakdown").innerHTML=sorted.length===0?'<div style="color:var(--muted3);font-size:12px">No variable expenses yet.</div>':sorted.map(([k,amt])=>{const c=cat(k),pct=variable>0?(amt/variable)*100:0;return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span>${c.emoji}</span><span style="font-size:12px;font-weight:600">${c.label}</span></div><span style="font-size:12px;font-weight:700;color:var(--expense)">${fmt(amt)} <span style="font-weight:400;color:var(--muted2)">(${pct.toFixed(0)}%)</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${c.color}"></div></div></div>`;}).join("");
 
@@ -1045,8 +1107,8 @@ function renderOverview(){
     return`<div style="margin-bottom:11px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><div style="display:flex;align-items:center;gap:6px"><span>${icon}</span><span style="font-size:12px;font-weight:600">${cat_name}</span></div><span style="font-size:12px;font-weight:700;color:var(--warning)">${fmt(amt)} <span style="font-weight:400;color:var(--muted2)">(${pct.toFixed(0)}%)</span></span></div><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:#d97706"></div></div></div>`;
   }).join("");
 
-  // Income Breakdown by category
-  const incByCat={};entries.filter(e=>e.type==="income").forEach(e=>{const k=e.catKey||"income";incByCat[k]=(incByCat[k]||0)+e.amount;});
+  // Income Breakdown by category — current month only
+  const incByCat={};entries.filter(e=>e.type==="income"&&isThisMonth(e)).forEach(e=>{const k=e.catKey||"income";incByCat[k]=(incByCat[k]||0)+e.amount;});
   const incSorted=Object.entries(incByCat).sort((a,b)=>b[1]-a[1]);
   document.getElementById("income-breakdown").innerHTML=incSorted.length===0?'<div style="color:var(--muted3);font-size:12px">No income logged yet.</div>':incSorted.map(([k,amt])=>{
     const c=cat(k);const pct=inc>0?(amt/inc)*100:0;
@@ -1496,6 +1558,218 @@ function importCSV(ev){
     save();renderAll();toast(`${count} entries imported ✓`,"#6366f1");
   };
   reader.readAsText(file);ev.target.value="";
+}
+
+// ── Overview view toggle ──────────────────────────────
+let ovView="month";
+function setOverviewView(v){
+  ovView=v;
+  document.getElementById("ov-monthly").style.display=v==="month"?"block":"none";
+  document.getElementById("ov-yearly").style.display=v==="year"?"block":"none";
+  const mb=document.getElementById("ov-toggle-month");
+  const yb=document.getElementById("ov-toggle-year");
+  mb.style.background=v==="month"?"var(--surface)":"none";
+  mb.style.color=v==="month"?"var(--text)":"var(--muted)";
+  mb.style.boxShadow=v==="month"?"0 1px 3px rgba(0,0,0,0.1)":"none";
+  yb.style.background=v==="year"?"var(--surface)":"none";
+  yb.style.color=v==="year"?"var(--text)":"var(--muted)";
+  yb.style.boxShadow=v==="year"?"0 1px 3px rgba(0,0,0,0.1)":"none";
+  if(v==="year") renderYearlyView();
+}
+
+// ── Yearly view ───────────────────────────────────────
+let pieLevel=0, pieStack=[];
+
+function renderYearlyView(){
+  const yr=new Date().getFullYear();
+  const isThisYear=e=>new Date(e.date).getFullYear()===yr;
+  const monthsElapsed=new Date().getMonth()+1;
+
+  const yrInc=entries.filter(e=>e.type==="income"&&isThisYear(e)).reduce((s,e)=>s+e.amount,0);
+  const yrVar=entries.filter(e=>e.type==="expense"&&isThisYear(e)).reduce((s,e)=>s+e.amount,0);
+  const yrBills=billsTotal()*monthsElapsed;
+  const yrExp=yrBills+yrVar;
+  const yrNet=yrInc-yrExp;
+
+  document.getElementById("yr-income").textContent=fmt(yrInc);
+  document.getElementById("yr-net").textContent=fmt(yrNet);
+  document.getElementById("yr-net").style.color=yrNet>=0?"var(--income)":"var(--danger)";
+  document.getElementById("yr-bills").textContent=fmt(yrBills);
+  document.getElementById("yr-variable").textContent=fmt(yrVar);
+
+  // Yearly bar chart
+  const mo=MONTHS.map((m,mi)=>({m,
+    inc:entries.filter(e=>e.type==="income"&&getM(e.date)===mi&&isThisYear(e)).reduce((s,e)=>s+e.amount,0),
+    exp:entries.filter(e=>e.type==="expense"&&getM(e.date)===mi&&isThisYear(e)).reduce((s,e)=>s+e.amount,0)+billsTotal()
+  }));
+  const mx=Math.max(...mo.map(d=>Math.max(d.inc,d.exp)),1),now=new Date().getMonth();
+  document.getElementById("yr-bar-chart").innerHTML=mo.map(({m,inc,exp},i)=>`<div class="bar-col"><div class="bar-inner"><div class="bar" style="flex:1;background:var(--income);height:${(inc/mx)*100}%;opacity:${inc===0?0.15:i===now?1:0.65}"></div><div class="bar" style="flex:1;background:var(--expense);height:${(exp/mx)*100}%;opacity:${exp===0?0.15:i===now?1:0.65}"></div></div><div class="bar-lbl" style="${i===now?"color:var(--accent);font-weight:700":""}">${m}</div></div>`).join("");
+
+  // Reset pie to L1
+  pieLevel=0; pieStack=[];
+  renderPieL1(yrInc,yrBills,yrVar,yrNet);
+}
+
+// Pie chart helper — draw SVG pie from slices [{label,value,color,key}]
+function drawPie(slices,centerLabel,centerValue,centerPct){
+  const svg=document.getElementById("pie-svg");
+  const cx=110,cy=110,r=90,innerR=52;
+  const total=slices.reduce((s,sl)=>s+sl.value,0);
+  if(total===0){svg.innerHTML=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#f0ede8"/><text x="${cx}" y="${cy}" text-anchor="middle" fill="#c8c0b8" font-family="Plus Jakarta Sans,sans-serif" font-size="12">No data</text>`;document.getElementById("pie-legend").innerHTML="";return;}
+
+  let startAngle=-Math.PI/2;
+  let paths="";
+  const legendItems=[];
+
+  slices.forEach((sl,idx)=>{
+    if(sl.value<=0)return;
+    const angle=(sl.value/total)*2*Math.PI;
+    const endAngle=startAngle+angle;
+    const x1=cx+r*Math.cos(startAngle),y1=cy+r*Math.sin(startAngle);
+    const x2=cx+r*Math.cos(endAngle),y2=cy+r*Math.sin(endAngle);
+    const ix1=cx+innerR*Math.cos(startAngle),iy1=cy+innerR*Math.sin(startAngle);
+    const ix2=cx+innerR*Math.cos(endAngle),iy2=cy+innerR*Math.sin(endAngle);
+    const large=angle>Math.PI?1:0;
+    const pct=((sl.value/total)*100).toFixed(1);
+    const midAngle=startAngle+angle/2;
+    const lx=cx+(r*0.7)*Math.cos(midAngle),ly=cy+(r*0.7)*Math.sin(midAngle);
+
+    paths+=`<path d="M${ix1},${iy1} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${innerR},${innerR} 0 ${large},0 ${ix1},${iy1} Z"
+      fill="${sl.color}" opacity="0.88" stroke="#fff" stroke-width="2"
+      style="cursor:pointer;transition:opacity 0.15s"
+      onmouseover="this.style.opacity=1"
+      onmouseout="this.style.opacity=0.88"
+      onclick="pieDrillDown('${sl.key}','${sl.label}')"
+      data-idx="${idx}"/>`;
+
+    if(pct>5){
+      paths+=`<text x="${lx}" y="${ly}" text-anchor="middle" fill="#fff" font-family="Plus Jakarta Sans,sans-serif" font-size="10" font-weight="700" style="pointer-events:none">${pct}%</text>`;
+    }
+    legendItems.push({...sl,pct});
+    startAngle=endAngle;
+  });
+
+  // Inner circle (donut hole)
+  paths+=`<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="#fff"/>`;
+  svg.innerHTML=paths;
+
+  // Center text
+  document.getElementById("pie-center-label").textContent=centerLabel;
+  document.getElementById("pie-center-value").textContent=centerValue;
+  document.getElementById("pie-center-pct").textContent=centerPct;
+
+  // Legend
+  document.getElementById("pie-legend").innerHTML=legendItems.map(sl=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="pieDrillDown('${sl.key}','${sl.label}')">
+      <div style="width:10px;height:10px;border-radius:3px;background:${sl.color};flex-shrink:0"></div>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text)">${sl.label}</div>
+      <div style="text-align:right">
+        <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;color:${sl.color}">${fmt(sl.value)}</div>
+        <div style="font-size:10px;color:var(--muted2)">${sl.pct}%</div>
+      </div>
+      <div style="color:var(--muted3);font-size:12px">›</div>
+    </div>`).join("");
+}
+
+// L1 — Income / Fixed Bills / Variable
+function renderPieL1(yrInc,yrBills,yrVar,yrNet){
+  document.getElementById("pie-nav").style.display="none";
+  document.getElementById("pie-title").textContent="Yearly Breakdown — tap a slice to drill down";
+  const total=yrInc+yrBills+yrVar;
+  const rate=yrInc>0?((yrNet/yrInc)*100).toFixed(1)+"% saved":"";
+  drawPie([
+    {label:"Income",value:yrInc,color:"#2d7a4f",key:"income"},
+    {label:"Fixed Bills",value:yrBills,color:"#d97706",key:"bills"},
+    {label:"Variable Spend",value:yrVar,color:"#c0392b",key:"variable"}
+  ],"Net Savings",fmt(yrNet),rate);
+}
+
+// Drill down handler
+function pieDrillDown(key,label){
+  const yr=new Date().getFullYear();
+  const isThisYear=e=>new Date(e.date).getFullYear()===yr;
+  const monthsElapsed=new Date().getMonth()+1;
+
+  if(pieLevel===0){
+    // L1 → L2
+    pieStack=[{key:"root",label:"Total"}];
+    let slices=[];
+    if(key==="income"){
+      const byCat={};entries.filter(e=>e.type==="income"&&isThisYear(e)).forEach(e=>{const k=e.catKey||"income";byCat[k]=(byCat[k]||0)+e.amount;});
+      const colors=["#2d7a4f","#34a85a","#4ade80","#16a34a","#065f46","#6ee7b7"];
+      slices=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:cat(k).label,value:v,color:colors[i%colors.length],key:`income_cat_${k}`}));
+    } else if(key==="bills"){
+      const billCats={};
+      manualBills.forEach(b=>{billCats[b.cat]=(billCats[b.cat]||0)+b.amount*monthsElapsed;});
+      autoBills.forEach(b=>{billCats[b.cat]=(billCats[b.cat]||0)+b.amount*monthsElapsed;});
+      installments.forEach(b=>{const k="Installments";billCats[k]=(billCats[k]||0)+b.monthly*monthsElapsed;});
+      subscriptions.forEach(b=>{billCats["Subscriptions"]=(billCats["Subscriptions"]||0)+subMonthly(b)*monthsElapsed;});
+      const colors=["#d97706","#f59e0b","#fbbf24","#b45309","#92400e","#fcd34d"];
+      slices=Object.entries(billCats).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,value:v,color:colors[i%colors.length],key:`bills_cat_${k}`}));
+    } else if(key==="variable"){
+      const byCat={};entries.filter(e=>e.type==="expense"&&isThisYear(e)).forEach(e=>{const k=e.catKey||"other";byCat[k]=(byCat[k]||0)+e.amount;});
+      const colors=["#c0392b","#e74c3c","#ef4444","#dc2626","#b91c1c","#fca5a5","#991b1b","#f87171"];
+      slices=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:cat(k).label,value:v,color:colors[i%colors.length],key:`var_cat_${k}`}));
+    }
+    pieStack.push({key,label,slices});
+    pieLevel=1;
+    const total=slices.reduce((s,sl)=>s+sl.value,0);
+    showPieLevel(slices,label,fmt(total),"");
+  } else if(pieLevel===1){
+    // L2 → L3
+    let slices=[];
+    if(key.startsWith("income_cat_")){
+      const catKey=key.replace("income_cat_","");
+      const bySub={};entries.filter(e=>e.type==="income"&&isThisYear(e)&&e.catKey===catKey).forEach(e=>{const s=e.sub||"Other";bySub[s]=(bySub[s]||0)+e.amount;});
+      const colors=["#2d7a4f","#34a85a","#4ade80","#16a34a","#065f46","#6ee7b7"];
+      slices=Object.entries(bySub).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,value:v,color:colors[i%colors.length],key:`nosub_${k}`}));
+    } else if(key.startsWith("bills_cat_")){
+      const billCat=key.replace("bills_cat_","");
+      const bySub={};
+      if(billCat==="Subscriptions") subscriptions.forEach(b=>{bySub[b.name]=(bySub[b.name]||0)+subMonthly(b)*monthsElapsed;});
+      else if(billCat==="Installments") installments.forEach(b=>{bySub[b.name]=(bySub[b.name]||0)+b.monthly*monthsElapsed;});
+      else{
+        manualBills.filter(b=>b.cat===billCat).forEach(b=>{bySub[b.name]=(bySub[b.name]||0)+b.amount*monthsElapsed;});
+        autoBills.filter(b=>b.cat===billCat).forEach(b=>{bySub[b.name]=(bySub[b.name]||0)+b.amount*monthsElapsed;});
+      }
+      const colors=["#d97706","#f59e0b","#fbbf24","#b45309","#92400e","#fcd34d"];
+      slices=Object.entries(bySub).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,value:v,color:colors[i%colors.length],key:`nosub_${k}`}));
+    } else if(key.startsWith("var_cat_")){
+      const catKey=key.replace("var_cat_","");
+      const bySub={};entries.filter(e=>e.type==="expense"&&isThisYear(e)&&e.catKey===catKey).forEach(e=>{const s=e.sub||"Other";bySub[s]=(bySub[s]||0)+e.amount;});
+      const colors=["#c0392b","#e74c3c","#ef4444","#dc2626","#b91c1c","#fca5a5","#991b1b"];
+      slices=Object.entries(bySub).sort((a,b)=>b[1]-a[1]).map(([k,v],i)=>({label:k,value:v,color:colors[i%colors.length],key:`nosub_${k}`}));
+    }
+    if(slices.length===0){toast("No further breakdown available","#d97706");return;}
+    pieStack.push({key,label,slices});
+    pieLevel=2;
+    const total=slices.reduce((s,sl)=>s+sl.value,0);
+    showPieLevel(slices,label,fmt(total),"");
+  } else {
+    // L3 — no further drill
+    toast("Deepest level reached","#6b7280");
+  }
+}
+
+function showPieLevel(slices,label,centerVal,centerPct){
+  const breadcrumb=pieStack.map(s=>s.label).join(" › ")+" › "+label;
+  document.getElementById("pie-nav").style.display="flex";
+  document.getElementById("pie-breadcrumb").textContent=breadcrumb;
+  document.getElementById("pie-title").textContent=label+" — tap a slice to drill further";
+  const total=slices.reduce((s,sl)=>s+sl.value,0);
+  drawPie(slices,label,fmt(total),"");
+}
+
+function pieDrillBack(){
+  if(pieLevel===0)return;
+  pieStack.pop();
+  pieLevel--;
+  if(pieLevel===0){
+    renderYearlyView();
+  } else {
+    const prev=pieStack[pieStack.length-1];
+    showPieLevel(prev.slices,prev.label,fmt(prev.slices.reduce((s,sl)=>s+sl.value,0)),"");
+  }
 }
 
 let toastTimer;
