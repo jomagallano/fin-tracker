@@ -632,7 +632,20 @@ textarea { resize: vertical; min-height: 64px; }
       <label>Deadline (optional)</label>
       <input type="date" id="goal-deadline">
     </div>
-    <div class="btn-row">
+    <div style="background:var(--sinag-dark);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--text-mid);line-height:1.5">
+      💡 Set a monthly target and reminder date to get prompted to save each month.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group" style="margin:0">
+        <label>Monthly Target (₱)</label>
+        <input type="number" id="goal-monthly" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Remind on Day</label>
+        <input type="number" id="goal-reminder-day" placeholder="e.g. 25" min="1" max="28" inputmode="numeric">
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
       <button class="btn btn-ghost" onclick="closeModal('modal-goal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveGoal()">Save</button>
     </div>
@@ -737,6 +750,52 @@ textarea { resize: vertical; min-height: 64px; }
   </div>
 </div>
 
+<!-- TAG EDITOR -->
+<div class="modal-overlay" id="modal-tag-editor">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="tag-editor-title">Edit Tags</div>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:14px;line-height:1.5">Select all tags that apply to this subcategory.</p>
+    <div id="tag-editor-checks" style="margin-bottom:16px"></div>
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Add Custom Tag</div>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="new-tag-input" placeholder="#my-tag" style="flex:1;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;background:var(--sinag);outline:none">
+        <button class="btn-icon add-ic" onclick="addCustomTag()">+</button>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeModal('modal-tag-editor')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTagEditor()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVINGS REMINDER CONFIRM -->
+<div class="modal-overlay" id="modal-savings-confirm">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🎯 Time to Save!</div>
+    <p id="savings-confirm-text" style="font-size:15px;color:var(--text-mid);margin-bottom:16px;line-height:1.6"></p>
+    <div class="form-group">
+      <label>Amount (₱)</label>
+      <input type="number" id="savings-confirm-amount" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" id="savings-confirm-date">
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" id="savings-confirm-notes" placeholder="Optional notes…">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="closeSavingsConfirm()">Later</button>
+      <button class="btn btn-primary" onclick="confirmSavingsLog()">Log Savings</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════
 // DATA MODEL
@@ -780,6 +839,9 @@ const DEFAULT_SUB_TAGS = {
   'Netflix':['#subscription','#auto-payment'],'Claude':['#subscription','#auto-payment'],
   'Commute':['#variable-expense'],'Grab':['#variable-expense'],'InDrive':['#variable-expense'],'GSM':['#variable-expense']
 };
+
+const SYSTEM_TAGS = ['#variable-expense','#manual-payment','#auto-payment','#installment','#subscription'];
+function allTags() { return [...SYSTEM_TAGS, ...(D.customTags||[])]; }
 
 function fomStr() {
   // first of current month
@@ -830,6 +892,7 @@ function defaultData() {
     subcategoryTags: JSON.parse(JSON.stringify(DEFAULT_SUB_TAGS)),
     paymentSources: ['BPI','GCash','GoTyme'],
     incomeSources: ['Salary','Freelance','Business'],
+    customTags: [],
     settings: { backupReminder: true, tightThreshold: 0 }
   };
 }
@@ -1710,6 +1773,7 @@ function renderSavings() {
       <div class="goal-amounts"><span>${peso(saved)} saved</span><span>Target: ${peso(g.targetAmount)}</span></div>
       <div class="goal-track"><div class="goal-fill ${done?'done':''}" style="width:${pct}%"></div></div>
       <div class="goal-pct">${pct.toFixed(0)}% complete${g.deadline?' · Due '+fmtDate(g.deadline):''}</div>
+      ${g.monthlyAmount>0?`<div style="font-size:12px;color:var(--pandan);margin-top:6px;font-weight:500">₱${(+g.monthlyAmount).toLocaleString()} /mo${g.reminderDay?' · Remind day '+g.reminderDay:''}</div>`:''}
     </div>`;
   });
   el.innerHTML = html;
@@ -1748,6 +1812,7 @@ function renderSettings() {
     <div class="settings-item" onclick="openSettingsList('categories')"><span class="settings-label">Categories &amp; Subcategories</span><span class="settings-chevron">›</span></div>
     <div class="settings-item" onclick="openSettingsList('paymentSources')"><span class="settings-label">Payment Sources</span><span class="settings-chevron">›</span></div>
     <div class="settings-item" onclick="openSettingsList('incomeSources')"><span class="settings-label">Income Sources</span><span class="settings-chevron">›</span></div>
+    <div class="settings-item" onclick="openSettingsList('tags')"><span class="settings-label">Tags</span><span class="settings-chevron">›</span></div>
 
     <div class="settings-section-title">Budget Limits</div>
     ${budgetListHtml}
@@ -2036,10 +2101,16 @@ function clearData() {
 let slType = '';
 function openSettingsList(type) {
   slType = type;
-  document.getElementById('sl-title').textContent = {categories:'Categories & Subcategories',paymentSources:'Payment Sources',incomeSources:'Income Sources'}[type];
+  document.getElementById('sl-title').textContent = {
+    categories:'Categories & Subcategories',
+    paymentSources:'Payment Sources',
+    incomeSources:'Income Sources',
+    tags:'Tags'
+  }[type];
   buildSettingsList();
   openModal('modal-settings-list');
 }
+
 function buildSettingsList() {
   const el = document.getElementById('sl-content');
   if (slType==='categories') {
@@ -2052,9 +2123,23 @@ function buildSettingsList() {
           <span>${cat}</span>
           <button class="btn-icon remove" onclick="removeCat('${cat}')">−</button>
         </div>
-        ${(cats[cat]||[]).map(sub=>`<div class="edit-list-item"><span>${sub}</span><button class="btn-icon remove" onclick="removeSub('${cat}','${sub}')">−</button></div>`).join('')}
+        ${(cats[cat]||[]).map(sub => {
+          const tags = getTags(sub);
+          const tagPills = tags.map(t => {
+            const cls = t==='#auto-payment'?'auto':t==='#manual-payment'?'manual':t==='#subscription'?'sub':'';
+            return `<span class="tag ${cls}" style="font-size:10px">${t}</span>`;
+          }).join('');
+          return `<div class="edit-list-item" style="align-items:flex-start;padding:8px 0">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px">${sub}</div>
+              ${tags.length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${tagPills}</div>`:'<div style="font-size:11px;color:var(--text-light);margin-top:3px">No tags</div>'}
+            </div>
+            <button class="btn-icon add-ic" onclick="openTagEditor('${sub.replace(/'/g,'\\'+'\'')}')" title="Edit tags" style="font-size:13px;margin-right:4px">🏷️</button>
+            <button class="btn-icon remove" onclick="removeSub('${cat}','${sub.replace(/'/g,'\\'+'\'')}')" style="margin-top:2px">−</button>
+          </div>`;
+        }).join('')}
         <div style="display:flex;gap:6px;margin-top:6px">
-          <input type="text" id="newsub_${sid}" placeholder="New subcategory…" style="flex:1;padding:7px 10px;font-size:13px">
+          <input type="text" id="newsub_${sid}" placeholder="New subcategory…" style="flex:1;padding:7px 10px;font-size:13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;background:var(--sinag);outline:none">
           <button class="btn-icon add-ic" onclick="addSub('${cat}','${sid}')">+</button>
         </div>
       </div>`;
@@ -2062,16 +2147,29 @@ function buildSettingsList() {
     html += `<div style="border-top:1px solid var(--border);padding-top:14px">
       <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Add Category</div>
       <div style="display:flex;gap:6px">
-        <input type="text" id="newcat-input" placeholder="Category name…" style="flex:1;padding:8px 10px;font-size:14px">
+        <input type="text" id="newcat-input" placeholder="Category name…" style="flex:1;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;background:var(--sinag);outline:none">
         <button class="btn-icon add-ic" onclick="addCat()">+</button>
       </div>
+    </div>`;
+    el.innerHTML = html;
+  } else if (slType==='tags') {
+    const custom = D.customTags||[];
+    let html = `<div style="margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">System Tags (read-only)</div>
+      ${SYSTEM_TAGS.map(t=>`<div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)"><span class="tag" style="font-size:12px">${t}</span><span style="margin-left:8px;font-size:12px;color:var(--text-light)">Built-in</span></div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Custom Tags</div>
+    ${custom.length ? custom.map((t,i)=>`<div class="edit-list-item"><span class="tag" style="font-size:12px">${t}</span><button class="btn-icon remove" onclick="removeCustomTag(${i})">−</button></div>`).join('') : '<p style="font-size:13px;color:var(--text-light);padding:6px 0">No custom tags yet.</p>'}
+    <div style="display:flex;gap:6px;margin-top:12px">
+      <input type="text" id="newitem-input" placeholder="e.g. #wants, #reimbursable" style="flex:1;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;background:var(--sinag);outline:none">
+      <button class="btn-icon add-ic" onclick="addCustomTagFromSettings()">+</button>
     </div>`;
     el.innerHTML = html;
   } else {
     const items = D[slType]||[];
     el.innerHTML = items.map((item,i)=>`<div class="edit-list-item"><span>${item}</span><button class="btn-icon remove" onclick="removeListItem(${i})">−</button></div>`).join('') +
       `<div style="display:flex;gap:6px;margin-top:12px">
-        <input type="text" id="newitem-input" placeholder="Add new…" style="flex:1;padding:8px 10px;font-size:14px">
+        <input type="text" id="newitem-input" placeholder="Add new…" style="flex:1;padding:8px 10px;font-size:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;background:var(--sinag);outline:none">
         <button class="btn-icon add-ic" onclick="addListItem()">+</button>
       </div>`;
   }
@@ -2082,6 +2180,82 @@ function addSub(cat,sid) { const inp=document.getElementById('newsub_'+sid); con
 function removeSub(cat,sub) { if(!confirm('Remove "'+sub+'"?')) return; D.categories[cat]=(D.categories[cat]||[]).filter(s=>s!==sub); save(); buildSettingsList(); }
 function addListItem() { const v=(document.getElementById('newitem-input')||{}).value; if(!v||!v.trim()) return; if(!D[slType]) D[slType]=[]; D[slType].push(v.trim()); save(); buildSettingsList(); }
 function removeListItem(idx) { if(!D[slType]) return; D[slType].splice(idx,1); save(); buildSettingsList(); }
+
+function addCustomTagFromSettings() {
+  const inp = document.getElementById('newitem-input');
+  let v = (inp ? inp.value.trim() : '');
+  if (!v) return;
+  if (!v.startsWith('#')) v = '#' + v;
+  v = v.toLowerCase().replace(/\s+/g,'-');
+  if (!D.customTags) D.customTags = [];
+  if (D.customTags.includes(v) || SYSTEM_TAGS.includes(v)) { alert('Tag already exists.'); return; }
+  D.customTags.push(v);
+  save(); buildSettingsList();
+}
+
+function removeCustomTag(idx) {
+  if (!confirm('Remove this custom tag? It will be removed from all subcategories that use it.')) return;
+  const tag = D.customTags[idx];
+  D.customTags.splice(idx, 1);
+  // Remove from all subcategoryTags
+  Object.keys(D.subcategoryTags||{}).forEach(sub => {
+    D.subcategoryTags[sub] = (D.subcategoryTags[sub]||[]).filter(t => t !== tag);
+  });
+  save(); buildSettingsList();
+}
+
+// ── TAG EDITOR ────────────────────────────────────
+
+let tagEditorSub = '';
+
+function openTagEditor(sub) {
+  tagEditorSub = sub;
+  document.getElementById('tag-editor-title').textContent = 'Tags — ' + sub;
+  document.getElementById('new-tag-input').value = '';
+  renderTagEditorChecks();
+  openModal('modal-tag-editor');
+}
+
+function renderTagEditorChecks() {
+  const current = getTags(tagEditorSub);
+  const tags = allTags();
+  document.getElementById('tag-editor-checks').innerHTML = tags.map(tag => {
+    const isSystem = SYSTEM_TAGS.includes(tag);
+    const checked  = current.includes(tag);
+    const cls = tag==='#auto-payment'?'auto':tag==='#manual-payment'?'manual':tag==='#subscription'?'sub':'';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" ${checked?'checked':''} value="${tag}" style="width:18px;height:18px;accent-color:var(--pandan);flex-shrink:0">
+      <span class="tag ${cls}" style="font-size:12px">${tag}</span>
+      ${isSystem?'<span style="font-size:11px;color:var(--text-light);margin-left:auto">system</span>':''}
+    </label>`;
+  }).join('');
+}
+
+function addCustomTag() {
+  const inp = document.getElementById('new-tag-input');
+  let v = inp ? inp.value.trim() : '';
+  if (!v) return;
+  if (!v.startsWith('#')) v = '#' + v;
+  v = v.toLowerCase().replace(/\s+/g,'-');
+  if (!D.customTags) D.customTags = [];
+  if (D.customTags.includes(v) || SYSTEM_TAGS.includes(v)) { alert('Tag already exists.'); return; }
+  D.customTags.push(v);
+  save();
+  inp.value = '';
+  renderTagEditorChecks();
+}
+
+function saveTagEditor() {
+  const checks = document.querySelectorAll('#tag-editor-checks input[type=checkbox]');
+  const selected = [];
+  checks.forEach(cb => { if (cb.checked) selected.push(cb.value); });
+  if (!D.subcategoryTags) D.subcategoryTags = {};
+  D.subcategoryTags[tagEditorSub] = selected;
+  save();
+  closeModal('modal-tag-editor');
+  // Rebuild categories list if it's open
+  if (slType === 'categories') buildSettingsList();
+}
 
 // ═══════════════════════════════════════════════════
 // BUDGET SETTINGS
@@ -2412,30 +2586,111 @@ function populateComPaySrcs() { const s=document.getElementById('com-pay-src'); 
 // SAVINGS GOAL MODAL
 // ═══════════════════════════════════════════════════
 
-let editGoalId=null;
-function openAddGoal() { editGoalId=null; document.getElementById('goal-title').textContent='New Savings Goal'; document.getElementById('goal-name').value=''; document.getElementById('goal-target').value=''; document.getElementById('goal-deadline').value=''; document.getElementById('goal-del-row').style.display='none'; openModal('modal-goal'); }
-function openEditGoal(id) {
-  const g=(D.savingsGoals||[]).find(x=>x.id===id); if(!g) return;
-  editGoalId=id;
-  document.getElementById('goal-title').textContent='Edit Goal';
-  document.getElementById('goal-name').value=g.name;
-  document.getElementById('goal-target').value=g.targetAmount;
-  document.getElementById('goal-deadline').value=g.deadline||'';
-  document.getElementById('goal-del-row').style.display='flex';
+let editGoalId = null;
+let savingsReminderQueue = [];
+
+function openAddGoal() {
+  editGoalId = null;
+  document.getElementById('goal-title').textContent = 'New Savings Goal';
+  document.getElementById('goal-name').value = '';
+  document.getElementById('goal-target').value = '';
+  document.getElementById('goal-deadline').value = '';
+  document.getElementById('goal-monthly').value = '';
+  document.getElementById('goal-reminder-day').value = '';
+  document.getElementById('goal-del-row').style.display = 'none';
   openModal('modal-goal');
 }
+
+function openEditGoal(id) {
+  const g = (D.savingsGoals||[]).find(x => x.id===id); if (!g) return;
+  editGoalId = id;
+  document.getElementById('goal-title').textContent = 'Edit Goal';
+  document.getElementById('goal-name').value = g.name;
+  document.getElementById('goal-target').value = g.targetAmount;
+  document.getElementById('goal-deadline').value = g.deadline||'';
+  document.getElementById('goal-monthly').value = g.monthlyAmount||'';
+  document.getElementById('goal-reminder-day').value = g.reminderDay||'';
+  document.getElementById('goal-del-row').style.display = 'flex';
+  openModal('modal-goal');
+}
+
 function saveGoal() {
-  const name=document.getElementById('goal-name').value.trim();
-  const target=parseFloat(document.getElementById('goal-target').value);
-  if(!name||!target||target<=0){alert('Please enter name and target.');return;}
-  if(editGoalId){const g=(D.savingsGoals||[]).find(x=>x.id===editGoalId);if(g){g.name=name;g.targetAmount=target;g.deadline=document.getElementById('goal-deadline').value;}}
-  else{if(!D.savingsGoals)D.savingsGoals=[];D.savingsGoals.push({id:uid(),name,targetAmount:target,deadline:document.getElementById('goal-deadline').value,contributions:[]});}
+  const name   = document.getElementById('goal-name').value.trim();
+  const target = parseFloat(document.getElementById('goal-target').value);
+  if (!name||!target||target<=0) { alert('Please enter name and target.'); return; }
+  const monthly     = parseFloat(document.getElementById('goal-monthly').value)||0;
+  const reminderDay = parseInt(document.getElementById('goal-reminder-day').value)||0;
+  if (editGoalId) {
+    const g = (D.savingsGoals||[]).find(x => x.id===editGoalId);
+    if (g) { g.name=name; g.targetAmount=target; g.deadline=document.getElementById('goal-deadline').value; g.monthlyAmount=monthly; g.reminderDay=reminderDay; }
+  } else {
+    if (!D.savingsGoals) D.savingsGoals=[];
+    D.savingsGoals.push({ id:uid(), name, targetAmount:target, deadline:document.getElementById('goal-deadline').value, monthlyAmount:monthly, reminderDay:reminderDay, contributions:[] });
+  }
   save(); closeModal('modal-goal'); renderSavings();
 }
+
 function deleteGoal() {
-  if(!editGoalId||!confirm('Delete this goal?')) return;
-  D.savingsGoals=(D.savingsGoals||[]).filter(x=>x.id!==editGoalId);
+  if (!editGoalId||!confirm('Delete this goal?')) return;
+  D.savingsGoals = (D.savingsGoals||[]).filter(x => x.id!==editGoalId);
   save(); closeModal('modal-goal'); renderSavings();
+}
+
+// ── SAVINGS REMINDER ─────────────────────────────
+
+function goalLoggedThisMonth(goalId) {
+  const mk = monthKey(today());
+  return D.transactions.some(t => t.type==='savings' && t.savingsGoalId===goalId && monthKey(t.date)===mk);
+}
+
+function checkSavingsReminders() {
+  const todayDay = new Date().getDate();
+  savingsReminderQueue = (D.savingsGoals||[]).filter(g =>
+    g.monthlyAmount > 0 &&
+    g.reminderDay   > 0 &&
+    todayDay >= g.reminderDay &&
+    !goalLoggedThisMonth(g.id)
+  );
+  if (savingsReminderQueue.length) promptNextSavings();
+}
+
+function promptNextSavings() {
+  if (!savingsReminderQueue.length) return;
+  const g = savingsReminderQueue[0];
+  document.getElementById('savings-confirm-text').textContent =
+    `Your monthly savings target for "${g.name}" is due. Log ₱${(+g.monthlyAmount).toLocaleString('en-PH', {minimumFractionDigits:2})}?`;
+  document.getElementById('savings-confirm-amount').value = g.monthlyAmount;
+  document.getElementById('savings-confirm-date').value   = today();
+  document.getElementById('savings-confirm-notes').value  = '';
+  openModal('modal-savings-confirm');
+}
+
+function closeSavingsConfirm() {
+  closeModal('modal-savings-confirm');
+  savingsReminderQueue.shift();
+  if (savingsReminderQueue.length) setTimeout(promptNextSavings, 300);
+}
+
+function confirmSavingsLog() {
+  if (!savingsReminderQueue.length) return;
+  const g      = savingsReminderQueue[0];
+  const amount = parseFloat(document.getElementById('savings-confirm-amount').value);
+  const date   = document.getElementById('savings-confirm-date').value || today();
+  const notes  = document.getElementById('savings-confirm-notes').value.trim();
+  if (!amount||amount<=0) { alert('Please enter an amount.'); return; }
+  if (!g.contributions) g.contributions = [];
+  const txnId = uid();
+  D.transactions.unshift({
+    id: txnId, type: 'savings', amount, date,
+    savingsGoalId: g.id, savingsGoalName: g.name,
+    notes: notes || `Monthly savings — ${g.name}`, tags: []
+  });
+  g.contributions.push({ date, amount, transactionId: txnId });
+  save();
+  closeModal('modal-savings-confirm');
+  savingsReminderQueue.shift();
+  renderSavings();
+  if (savingsReminderQueue.length) setTimeout(promptNextSavings, 300);
 }
 
 // ═══════════════════════════════════════════════════
@@ -2474,12 +2729,13 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{ov.addEventListener('cl
 
 (function init() {
   renderLog();
-  // On load: check for overdue installments with amounts set — prompt one at a time
   const overdueInstalls = (D.commitments||[]).filter(c =>
     c.type==='installment' && comIsOverdue(c) && (+c.monthlyPayment||0) > 0
   );
   if (overdueInstalls.length) {
     setTimeout(() => openConfirmPayment(overdueInstalls[0].id), 700);
+  } else {
+    setTimeout(checkSavingsReminders, 700);
   }
 })();
 </script>
