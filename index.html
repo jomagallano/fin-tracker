@@ -246,7 +246,44 @@ textarea { resize: vertical; min-height: 64px; }
 .budget-fill.over    { background: var(--gumamela); }
 .budget-pct { font-size: 11px; color: var(--text-light); margin-top: 3px; text-align: right; }
 
-/* ── COMMITMENTS ────────────────────────────────── */
+/* ── TYPE PICKER ────────────────────────────────── */
+.type-pick-btn {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  background: white; cursor: pointer; text-align: left; width: 100%;
+  font-family: 'DM Sans', sans-serif; transition: border-color 0.18s, background 0.18s;
+}
+.type-pick-btn:active { border-color: var(--pandan); background: var(--pandan-light); }
+.type-pick-icon { font-size: 26px; flex-shrink: 0; line-height: 1; }
+.type-pick-label { font-size: 15px; font-weight: 600; color: var(--text-dark); }
+.type-pick-desc  { font-size: 12px; color: var(--text-light); margin-top: 2px; line-height: 1.4; }
+
+/* ── INSTALLMENT CALC CARD ──────────────────────── */
+.install-calc {
+  background: var(--pandan-light); border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 14px;
+}
+.install-calc-row {
+  display: flex; justify-content: space-between; font-size: 13px;
+  padding: 3px 0; border-bottom: 1px solid rgba(26,148,82,0.15);
+}
+.install-calc-row:last-child { border-bottom: none; padding-top: 6px; font-weight: 700; }
+.install-calc-label { color: var(--pandan-dark); }
+.install-calc-val   { font-weight: 600; color: var(--pandan-dark); }
+.bills-tabs { display: flex; background: var(--sinag-dark); border-radius: 22px; padding: 3px; margin-bottom: 16px; }
+.bills-tab {
+  flex: 1; text-align: center; padding: 7px 4px; border-radius: 20px;
+  font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  color: var(--text-mid); border: none; background: none;
+  font-family: 'DM Sans', sans-serif; white-space: nowrap;
+}
+.bills-tab.active { background: white; color: var(--pandan); box-shadow: 0 1px 5px rgba(0,0,0,0.1); font-weight: 700; }
+.bills-tab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--gumamela); color: white;
+  font-size: 9px; font-weight: 700; margin-left: 4px; vertical-align: middle;
+}
 .com-section-label {
   font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600;
   color: var(--text-mid); margin: 18px 0 10px; display: flex; align-items: center; gap: 8px;
@@ -456,6 +493,29 @@ textarea { resize: vertical; min-height: 64px; }
   </div>
 </div>
 
+<!-- COMMITMENT TYPE PICKER -->
+<div class="modal-overlay" id="modal-com-type">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">What type of commitment?</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <button class="type-pick-btn" onclick="openAddComWithType('manual-payment')">
+        <span class="type-pick-icon">✍️</span>
+        <div><div class="type-pick-label">Manual Payment</div><div class="type-pick-desc">Bills you pay yourself — utilities, insurance, RPT, etc.</div></div>
+      </button>
+      <button class="type-pick-btn" onclick="openAddComWithType('auto-payment')">
+        <span class="type-pick-icon">⚡</span>
+        <div><div class="type-pick-label">Auto-Payment / Subscription</div><div class="type-pick-desc">Auto-debited bills or recurring subscriptions</div></div>
+      </button>
+      <button class="type-pick-btn" onclick="openAddComWithType('installment')">
+        <span class="type-pick-icon">📦</span>
+        <div><div class="type-pick-label">Installment</div><div class="type-pick-desc">Loans and credit card installments with fixed terms</div></div>
+      </button>
+    </div>
+    <button class="btn btn-ghost" onclick="closeModal('modal-com-type')">Cancel</button>
+  </div>
+</div>
+
 <!-- ADD / EDIT COMMITMENT -->
 <div class="modal-overlay" id="modal-com">
   <div class="modal">
@@ -463,14 +523,14 @@ textarea { resize: vertical; min-height: 64px; }
     <div class="modal-title" id="com-title">Add Commitment</div>
     <div class="form-group">
       <label>Name</label>
-      <input type="text" id="com-name" placeholder="e.g. Netflix, Meralco">
+      <input type="text" id="com-name" placeholder="e.g. Netflix, Meralco, Mortgage">
     </div>
     <div class="form-group">
       <label>Type</label>
       <select id="com-type" onchange="onComTypeChange()">
-        <option value="subscription">Subscription</option>
-        <option value="auto-payment">Auto-Payment</option>
         <option value="manual-payment">Manual Payment</option>
+        <option value="auto-payment">Auto-Payment</option>
+        <option value="subscription">Subscription</option>
         <option value="installment">Installment</option>
       </select>
     </div>
@@ -486,11 +546,13 @@ textarea { resize: vertical; min-height: 64px; }
         <option value="">Select subcategory</option>
       </select>
     </div>
-    <div class="form-group">
+    <!-- Standard amount — hidden for installments -->
+    <div class="form-group" id="com-amount-row">
       <label>Amount (₱)</label>
       <input type="number" id="com-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
     </div>
-    <div class="form-group">
+    <!-- Billing cycle — hidden for installments -->
+    <div class="form-group" id="com-cycle-row">
       <label>Billing Cycle</label>
       <select id="com-cycle">
         <option value="monthly">Monthly</option>
@@ -502,15 +564,32 @@ textarea { resize: vertical; min-height: 64px; }
       <label>Next Due Date</label>
       <input type="date" id="com-due">
     </div>
+    <!-- INSTALLMENT-ONLY FIELDS -->
     <div id="installment-fields" style="display:none">
       <div class="form-group">
-        <label>Total Terms</label>
-        <input type="number" id="com-total-terms" placeholder="e.g. 24" min="1" inputmode="numeric">
+        <label>Principal Amount (₱) <span style="font-weight:400;color:var(--text-light)">— total amount borrowed</span></label>
+        <input type="number" id="com-principal" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="updateInstallmentCalc()">
       </div>
       <div class="form-group">
-        <label>Remaining Terms</label>
-        <input type="number" id="com-rem-terms" placeholder="e.g. 18" min="0" inputmode="numeric">
+        <label>Total Repayment Amount (₱) <span style="font-weight:400;color:var(--text-light)">— principal + all interest</span></label>
+        <input type="number" id="com-total-repay" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="updateInstallmentCalc()">
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group" style="margin:0">
+          <label>Total Terms</label>
+          <input type="number" id="com-total-terms" placeholder="e.g. 240" min="1" inputmode="numeric" oninput="updateInstallmentCalc()">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Remaining Terms</label>
+          <input type="number" id="com-rem-terms" placeholder="e.g. 215" min="0" inputmode="numeric" oninput="updateInstallmentCalc()">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Start Date <span style="font-weight:400;color:var(--text-light)">— informational</span></label>
+        <input type="date" id="com-start-date" oninput="updateInstallmentCalc()">
+      </div>
+      <!-- Live calc summary -->
+      <div id="installment-calc" style="display:none;margin:14px 0 4px"></div>
     </div>
     <div class="form-group">
       <label>Payment Source</label>
@@ -518,7 +597,8 @@ textarea { resize: vertical; min-height: 64px; }
         <option value="">Select source</option>
       </select>
     </div>
-    <div class="toggle-row" style="border-bottom:1px solid var(--border)">
+    <!-- Hidden for installments -->
+    <div id="com-tight-row" class="toggle-row" style="border-bottom:1px solid var(--border)">
       <span style="font-size:14px">Cancel if budget is tight</span>
       <label class="toggle">
         <input type="checkbox" id="com-cancel-tight">
@@ -809,6 +889,7 @@ function comIsDueThisMonth(c) {
 let currentTab = 'log';
 let dashView   = 'monthly';
 let dashMonth  = monthKey(today());
+let logSearchQuery = '';
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -840,14 +921,17 @@ function switchDashView(v) {
 // LOG TAB
 // ═══════════════════════════════════════════════════
 
+function runLogSearch() {
+  const input = document.getElementById('log-search');
+  if (input) logSearchQuery = input.value;
+  renderLog();
+}
+
 function backupBannerHtml() {
   const s = D.settings || {};
   if (!s.backupReminder) return '';
   const last = s.lastBackupDate;
-  let daysSince = null;
-  if (last) {
-    daysSince = Math.floor((new Date(today()) - new Date(last)) / 86400000);
-  }
+  const daysSince = last ? Math.floor((new Date(today()) - new Date(last)) / 86400000) : null;
   const needsBackup = !last || daysSince >= 7;
   if (!needsBackup) return '';
   const msg = !last
@@ -861,15 +945,55 @@ function backupBannerHtml() {
 
 function renderLog() {
   const el = document.getElementById('tab-log');
-  const txns = D.transactions.slice().sort((a,b) => b.date.localeCompare(a.date));
   const banner = backupBannerHtml();
+
+  // Search bar HTML (always shown)
+  const searchBar = `<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
+    <div style="position:relative;flex:1">
+      <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none">🔍</span>
+      <input type="text" id="log-search" placeholder="Search transactions…"
+        value="${logSearchQuery.replace(/"/g,'&quot;')}"
+        onkeydown="if(event.key==='Enter')runLogSearch()"
+        style="width:100%;padding:10px 36px 10px 38px;border:1.5px solid var(--border);border-radius:22px;font-family:'DM Sans',sans-serif;font-size:14px;background:white;outline:none;color:var(--text-dark)"
+        onfocus="this.style.borderColor='var(--pandan)'"
+        onblur="this.style.borderColor='var(--border)'">
+      ${logSearchQuery ? `<button onclick="logSearchQuery='';renderLog()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;font-size:18px;color:var(--text-light);line-height:1">×</button>` : ''}
+    </div>
+    <button onclick="runLogSearch()" style="padding:10px 18px;background:var(--pandan);color:white;border:none;border-radius:22px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0">Go</button>
+  </div>`;
+
+  const q = logSearchQuery.toLowerCase().trim();
+  let txns = D.transactions.slice().sort((a,b) => b.date.localeCompare(a.date));
+
+  // Filter only when query is 2+ characters
+  if (q.length >= 2) {
+    txns = txns.filter(t => {
+      return (t.category||'').toLowerCase().includes(q)
+          || (t.subcategory||'').toLowerCase().includes(q)
+          || (t.notes||'').toLowerCase().includes(q)
+          || (t.incomeSource||'').toLowerCase().includes(q)
+          || (t.savingsGoalName||'').toLowerCase().includes(q)
+          || (t.paymentMethod||'').toLowerCase().includes(q)
+          || String(t.amount||'').includes(q)
+          || (t.date||'').includes(q);
+    });
+  }
+
   if (!txns.length) {
-    el.innerHTML = banner + '<div class="empty-state"><div class="empty-icon">💸</div><p>No transactions yet.<br>Tap <strong>+</strong> to add your first entry.</p></div>';
+    el.innerHTML = banner + searchBar + (q.length >= 2
+      ? `<div class="empty-state"><div class="empty-icon">🔍</div><p>No transactions match<br><strong>"${logSearchQuery}"</strong></p></div>`
+      : `<div class="empty-state"><div class="empty-icon">💸</div><p>No transactions yet.<br>Tap <strong>+</strong> to add your first entry.</p></div>`);
     return;
   }
+
   const groups = {};
   txns.forEach(t => { const mk=monthKey(t.date); if(!groups[mk]) groups[mk]=[]; groups[mk].push(t); });
-  let html = banner;
+  let html = banner + searchBar;
+
+  if (q.length >= 2) {
+    html += `<div style="font-size:12px;color:var(--text-light);margin-bottom:10px;text-align:center">${txns.length} result${txns.length!==1?'s':''} for "${logSearchQuery}"</div>`;
+  }
+
   Object.keys(groups).sort((a,b)=>b.localeCompare(a)).forEach(mk => {
     const g = groups[mk];
     const income  = g.filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0);
@@ -908,8 +1032,10 @@ function renderLog() {
 // DASHBOARD
 // ═══════════════════════════════════════════════════
 
-let chartBreakdown=null, chartTrend=null, chartYearly=null;
+let chartBreakdown=null, chartBreakdownYr=null, chartTrend=null, chartYearly=null;
 let expandedCats = new Set();
+let catBreakdownOpen = false;
+let catBreakdownOpenYr = false;
 
 function getMonthTxns(mk) { return D.transactions.filter(t=>monthKey(t.date)===mk); }
 function calcSummary(txns) {
@@ -1006,13 +1132,18 @@ function renderMonthlyDash() {
       <div class="summary-card"><div class="s-label">Net Balance</div><div class="s-value ${s.net>=0?'c-positive':'c-negative'}">${peso(s.net)}</div></div>
     </div>
     ${momHtml}
+    ${budgetHtml}
     ${catEntries.length ? `<div class="card" id="cat-spending-card">
-      <div class="section-title">Spending by Category</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">Spending by Category</div>
+        <button onclick="toggleCatBreakdown()" id="breakdown-toggle-btn" style="border:none;background:var(--sinag-dark);color:var(--pandan);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer">
+          ${catBreakdownOpen ? 'Hide ▲' : 'Breakdown ▼'}
+        </button>
+      </div>
       <div class="chart-wrap"><canvas id="chart-breakdown"></canvas></div>
-      <div id="cat-breakdown-list" style="margin-top:4px"></div>
+      <div id="cat-breakdown-list"></div>
     </div>` : ''}
     <div class="card"><div class="section-title">Last 6 Months</div><div class="chart-wrap"><canvas id="chart-trend"></canvas></div></div>
-    ${budgetHtml}
     <button class="btn btn-ghost" onclick="openClipboard('monthly')" style="margin-bottom:14px">📋 Analyze with Claude</button>
   `;
 
@@ -1022,11 +1153,47 @@ function renderMonthlyDash() {
 function renderYearlyDash() {
   const el = document.getElementById('dash-content');
   const yr = new Date().getFullYear();
-  const txns = D.transactions.filter(t=>t.date&&t.date.startsWith(yr+''));
+  const txns = D.transactions.filter(t => t.date && t.date.startsWith(yr + ''));
   const s = calcSummary(txns);
-  const months = Array.from({length:12},(_,i)=>yr+'-'+String(i+1).padStart(2,'0'));
-  const incData = months.map(mk=>getMonthTxns(mk).filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
-  const expData = months.map(mk=>getMonthTxns(mk).filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
+  const months = Array.from({length:12}, (_,i) => yr + '-' + String(i+1).padStart(2,'0'));
+  const incData = months.map(mk => getMonthTxns(mk).filter(t=>t.type==='income').reduce((s,t)=>s+ +t.amount,0));
+  const expData = months.map(mk => getMonthTxns(mk).filter(t=>t.type==='expense').reduce((s,t)=>s+ +t.amount,0));
+
+  // Yearly category spending
+  const catSpend = {};
+  txns.filter(t => t.type==='expense').forEach(t => {
+    catSpend[t.category||'Other'] = (catSpend[t.category||'Other']||0) + +t.amount;
+  });
+  const catEntries = Object.entries(catSpend).sort((a,b) => b[1]-a[1]);
+
+  // Yearly budget (monthly × 12)
+  const budgets = D.budgets || {};
+  const budgetEntries = Object.entries(budgets);
+  let yearlyBudgetHtml = '';
+  if (budgetEntries.length) {
+    yearlyBudgetHtml = `<div class="card"><div class="section-title">Annual Budget</div>`;
+    budgetEntries.forEach(([cat, b]) => {
+      const yearlyLimit = b.limit * 12;
+      const spent = txns.filter(t => t.type==='expense' && t.category===cat).reduce((s,t) => s + +t.amount, 0);
+      const pct  = yearlyLimit > 0 ? Math.min(110, (spent/yearlyLimit)*100) : 0;
+      const warn = b.warnAt || 80;
+      const cls  = pct>=100 ? 'over' : pct>=warn ? 'warning' : 'safe';
+      const color = pct>=100 ? 'var(--gumamela)' : pct>=warn ? 'var(--calamansi-dark)' : 'var(--text-mid)';
+      const remaining = yearlyLimit - spent;
+      yearlyBudgetHtml += `<div class="budget-item">
+        <div class="budget-header">
+          <span class="budget-cat-name">${cat}</span>
+          <span class="budget-amounts" style="color:${color}">${peso(spent)} <span style="color:var(--text-light)">/ ${peso(yearlyLimit)}</span></span>
+        </div>
+        <div class="budget-track"><div class="budget-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div>
+        <div class="budget-pct" style="display:flex;justify-content:space-between">
+          <span style="color:var(--text-light);font-size:10px">Monthly limit: ${peso(b.limit)}</span>
+          <span>${pct>=100 ? `<span style="color:var(--gumamela)">Over by ${peso(Math.abs(remaining))}</span>` : remaining>0 ? `${peso(remaining)} remaining` : 'Fully spent'}</span>
+        </div>
+      </div>`;
+    });
+    yearlyBudgetHtml += '</div>';
+  }
 
   el.innerHTML = `
     <div class="summary-grid">
@@ -1037,37 +1204,58 @@ function renderYearlyDash() {
       <div class="summary-card"><div class="s-label">Total Savings</div><div class="s-value c-savings">${peso(s.savings)}</div></div>
       <div class="summary-card"><div class="s-label">Net ${yr}</div><div class="s-value ${s.net>=0?'c-positive':'c-negative'}">${peso(s.net)}</div></div>
     </div>
+    ${yearlyBudgetHtml}
+    ${catEntries.length ? `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">Spending by Category</div>
+        <button onclick="toggleCatBreakdownYr()" id="breakdown-toggle-btn-yr" style="border:none;background:var(--sinag-dark);color:var(--pandan);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;cursor:pointer">
+          ${catBreakdownOpenYr ? 'Hide ▲' : 'Breakdown ▼'}
+        </button>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-breakdown-yr"></canvas></div>
+      <div id="cat-breakdown-list-yr"></div>
+    </div>` : ''}
     <div class="card"><div class="section-title">Income vs. Expenses ${yr}</div><div class="chart-wrap"><canvas id="chart-yearly"></canvas></div></div>
     <button class="btn btn-ghost" onclick="openClipboard('yearly')" style="margin-bottom:14px">📋 Analyze with Claude</button>
   `;
+
   setTimeout(() => {
+    // Yearly line chart
     if (chartYearly) { chartYearly.destroy(); chartYearly=null; }
     const c = document.getElementById('chart-yearly');
-    if (!c) return;
-    chartYearly = new Chart(c, {
-      type: 'line',
-      data: {
-        labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-        datasets: [
-          { label:'Income',   data:incData, borderColor:'#1A9452', backgroundColor:'rgba(26,148,82,0.08)',  fill:true, tension:0.35, borderWidth:2.5, pointRadius:3 },
-          { label:'Expenses', data:expData, borderColor:'#E84A4A', backgroundColor:'rgba(232,74,74,0.08)', fill:true, tension:0.35, borderWidth:2.5, pointRadius:3 }
-        ]
-      },
-      options: chartOpts('line')
-    });
+    if (c) {
+      chartYearly = new Chart(c, {
+        type: 'line',
+        data: {
+          labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+          datasets: [
+            { label:'Income',   data:incData, borderColor:'#1A9452', backgroundColor:'rgba(26,148,82,0.08)',  fill:true, tension:0.35, borderWidth:2.5, pointRadius:3 },
+            { label:'Expenses', data:expData, borderColor:'#E84A4A', backgroundColor:'rgba(232,74,74,0.08)', fill:true, tension:0.35, borderWidth:2.5, pointRadius:3 }
+          ]
+        },
+        options: chartOpts('line')
+      });
+    }
+    // Yearly doughnut
+    buildBreakdownChart(catEntries, 'chart-breakdown-yr');
+    rebuildYearlyCatBreakdown(txns);
   }, 40);
 }
 
-function buildBreakdownChart(entries) {
-  if (chartBreakdown) { chartBreakdown.destroy(); chartBreakdown=null; }
-  const c = document.getElementById('chart-breakdown');
-  if (!c||!entries.length) return;
+function buildBreakdownChart(entries, canvasId, chartRef) {
+  canvasId = canvasId || 'chart-breakdown';
+  if (canvasId === 'chart-breakdown') { if (chartBreakdown) { chartBreakdown.destroy(); chartBreakdown=null; } }
+  else { if (chartBreakdownYr) { chartBreakdownYr.destroy(); chartBreakdownYr=null; } }
+  const c = document.getElementById(canvasId);
+  if (!c || !entries.length) return;
   const colors = ['#1A9452','#E84A4A','#F2C12E','#4A90D9','#9B59B6','#E67E22','#1ABC9C','#E91E8C','#607D8B','#FF5722','#795548'];
-  chartBreakdown = new Chart(c, {
+  const chart = new Chart(c, {
     type: 'doughnut',
     data: { labels:entries.map(e=>e[0]), datasets:[{ data:entries.map(e=>e[1]), backgroundColor:colors.slice(0,entries.length), borderWidth:2, borderColor:'#FDFAF0' }] },
     options: { responsive:true, plugins:{ legend:{position:'bottom',labels:{font:{family:'DM Sans',size:11},padding:10,boxWidth:12}}, tooltip:{callbacks:{label:ctx=>' '+peso(ctx.raw)}} } }
   });
+  if (canvasId === 'chart-breakdown') chartBreakdown = chart;
+  else chartBreakdownYr = chart;
 }
 
 function buildTrendChart() {
@@ -1111,20 +1299,50 @@ function chartOpts(type) {
 
 const CAT_COLORS = ['#1A9452','#E84A4A','#F2C12E','#4A90D9','#9B59B6','#E67E22','#1ABC9C','#E91E8C','#607D8B','#FF5722','#795548'];
 
-function toggleCatExpand(cat) {
+function toggleCatExpand(cat, isYearly) {
   if (expandedCats.has(cat)) expandedCats.delete(cat);
   else expandedCats.add(cat);
+  if (isYearly) {
+    const yr = new Date().getFullYear();
+    const txns = D.transactions.filter(t => t.date && t.date.startsWith(yr + ''));
+    rebuildYearlyCatBreakdown(txns);
+  } else {
+    rebuildCatBreakdown();
+  }
+}
+
+function toggleCatBreakdown() {
+  catBreakdownOpen = !catBreakdownOpen;
+  const btn = document.getElementById('breakdown-toggle-btn');
+  if (btn) btn.textContent = catBreakdownOpen ? 'Hide ▲' : 'Breakdown ▼';
   rebuildCatBreakdown();
+}
+
+function toggleCatBreakdownYr() {
+  catBreakdownOpenYr = !catBreakdownOpenYr;
+  const btn = document.getElementById('breakdown-toggle-btn-yr');
+  if (btn) btn.textContent = catBreakdownOpenYr ? 'Hide ▲' : 'Breakdown ▼';
+  const yr  = new Date().getFullYear();
+  const txns = D.transactions.filter(t => t.date && t.date.startsWith(yr + ''));
+  rebuildYearlyCatBreakdown(txns);
 }
 
 function rebuildCatBreakdown() {
   const el = document.getElementById('cat-breakdown-list');
   if (!el) return;
+  if (!catBreakdownOpen) { el.innerHTML = ''; return; }
   const txns = getMonthTxns(dashMonth);
   el.innerHTML = buildCatBreakdownHtml(txns);
 }
 
-function buildCatBreakdownHtml(txns) {
+function rebuildYearlyCatBreakdown(txns) {
+  const el = document.getElementById('cat-breakdown-list-yr');
+  if (!el) return;
+  if (!catBreakdownOpenYr) { el.innerHTML = ''; return; }
+  el.innerHTML = buildCatBreakdownHtml(txns, true);
+}
+
+function buildCatBreakdownHtml(txns, isYearly) {
   const catSpend = {}, subSpend = {};
   txns.filter(t => t.type === 'expense').forEach(t => {
     const cat = t.category || 'Other';
@@ -1146,7 +1364,7 @@ function buildCatBreakdownHtml(txns) {
     const color = CAT_COLORS[i % CAT_COLORS.length];
     const isExp = expandedCats.has(cat);
 
-    html += `<div class="cat-row" onclick="toggleCatExpand('${cat.replace(/'/g,"\\'")}')">
+    html += `<div class="cat-row" onclick="toggleCatExpand('${cat.replace(/'/g,"\\'")}', ${isYearly ? 'true' : 'false'})">
       <div class="cat-row-left">
         <div class="cat-dot" style="background:${color}"></div>
         <span class="cat-name">${cat}</span>
@@ -1186,27 +1404,39 @@ function buildCatBreakdownHtml(txns) {
 // ═══════════════════════════════════════════════════
 
 let pendingComId = null;
+let billsSubTab = 'manual';
+
+function switchBillsTab(tab) {
+  billsSubTab = tab;
+  renderCommitments();
+}
 
 function renderCommitments() {
   const el = document.getElementById('tab-commitments');
   const coms = D.commitments || [];
 
   const monthlyTotal = coms.reduce((s,c) => {
-    let a = +c.amount||0;
+    let a = (+c.amount||0) + (c.type==='installment' ? (+c.interestPerTerm||0) : 0);
     if (c.billingCycle==='annual') a/=12;
     else if (c.billingCycle==='quarterly') a/=3;
     return s+a;
   }, 0);
 
-  // Count overdue manual payments
-  const overdueManual = coms.filter(c=>c.type==='manual-payment'&&comIsOverdue(c));
+  const overdueManual  = coms.filter(c => c.type==='manual-payment' && comIsOverdue(c));
+  const manuals        = coms.filter(c => c.type==='manual-payment');
+  const autos          = coms.filter(c => c.type==='auto-payment');
+  const subs           = coms.filter(c => c.type==='subscription');
+  const installs       = coms.filter(c => c.type==='installment');
 
-  let html = '';
-  if (overdueManual.length) {
-    html += `<div class="alert-banner danger">⚠️ ${overdueManual.length} manual payment${overdueManual.length>1?'s':''} not yet settled from last month.</div>`;
-  }
+  // Badge counts for tabs
+  const manualBadge   = overdueManual.length ? `<span class="bills-tab-badge">${overdueManual.length}</span>` : '';
+  const overdueAutos  = autos.filter(c => comIsOverdue(c)).length + subs.filter(c => comIsOverdue(c)).length;
+  const autoBadge     = overdueAutos  ? `<span class="bills-tab-badge">${overdueAutos}</span>`  : '';
+  const overdueInst   = installs.filter(c => comIsOverdue(c)).length;
+  const instBadge     = overdueInst   ? `<span class="bills-tab-badge">${overdueInst}</span>`   : '';
 
-  html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+  // ── HEADER ───────────────────────────────────────
+  let html = `<div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <div>
       <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px">Monthly Committed</div>
       <div style="font-size:22px;font-weight:700;color:var(--gumamela)">${peso(monthlyTotal)}</div>
@@ -1214,59 +1444,87 @@ function renderCommitments() {
     <button class="btn btn-primary btn-sm" onclick="openAddCom()">+ Add</button>
   </div>`;
 
-  // ── MANUAL PAYMENTS (checklist) ──────────────────
-  const manuals = coms.filter(c=>c.type==='manual-payment');
-  if (manuals.length) {
-    html += `<div class="com-section-label">✍️ Manual Payments</div>`;
-    manuals.forEach(c => {
-      const paid    = comIsPaid(c);
-      const overdue = comIsOverdue(c);
-      const amtHtml = +c.amount > 0
-        ? `<span class="check-amount">${peso(c.amount)}</span>`
-        : `<span class="check-amount zero">Set amount</span>`;
-      const badgeHtml = overdue ? `<span class="overdue-badge">Overdue</span>` : paid ? `<span class="paid-badge">Paid</span>` : '';
-      const boxCls = paid ? 'check-box checked' : overdue ? 'check-box overdue' : 'check-box';
-      const itemCls = paid ? 'check-item is-paid' : overdue ? 'check-item is-overdue' : 'check-item';
-      const payInfo = paid ? `Next due ${fmtDate(c.nextDueDate)}` : overdue ? `Was due ${fmtDate(c.nextDueDate)}` : `Due ${fmtDate(c.nextDueDate)||'this month'}`;
+  // ── INNER TABS ───────────────────────────────────
+  html += `<div class="bills-tabs">
+    <button class="bills-tab ${billsSubTab==='manual'?'active':''}" onclick="switchBillsTab('manual')">✍️ Manual${manualBadge}</button>
+    <button class="bills-tab ${billsSubTab==='auto'?'active':''}"   onclick="switchBillsTab('auto')">⚡ Auto${autoBadge}</button>
+    <button class="bills-tab ${billsSubTab==='installments'?'active':''}" onclick="switchBillsTab('installments')">📦 Installments${instBadge}</button>
+  </div>`;
 
-      html += `<div class="${itemCls}">
-        <div class="${boxCls}" onclick="handleCheckboxClick('${c.id}')"></div>
-        <div class="check-info" onclick="openEditCom('${c.id}')">
-          <div class="check-name">${c.name||c.subcategory} ${badgeHtml}</div>
-          <div class="check-meta">${payInfo}${c.paymentSource?' · '+c.paymentSource:''}</div>
-        </div>
-        ${amtHtml}
+  // ── MANUAL PAYMENTS TAB ──────────────────────────
+  if (billsSubTab === 'manual') {
+    if (overdueManual.length) {
+      html += `<div class="alert-banner danger" style="margin-bottom:12px">⚠️ ${overdueManual.length} payment${overdueManual.length>1?'s':''} not yet settled from last month.</div>`;
+    }
+    if (!manuals.length) {
+      html += '<div class="empty-state"><div class="empty-icon">✍️</div><p>No manual payments set up yet.<br>Tap <strong>+ Add</strong> and choose Manual Payment.</p></div>';
+    } else {
+      // Sort: overdue first, then due this month, then paid
+      const sorted = [
+        ...manuals.filter(c => comIsOverdue(c)),
+        ...manuals.filter(c => !comIsOverdue(c) && !comIsPaid(c)),
+        ...manuals.filter(c => comIsPaid(c))
+      ];
+      sorted.forEach(c => {
+        const paid    = comIsPaid(c);
+        const overdue = comIsOverdue(c);
+        const amtHtml = +c.amount > 0
+          ? `<span class="check-amount">${peso(+c.amount)}</span>`
+          : `<span class="check-amount zero">Set amount</span>`;
+        const badgeHtml = overdue ? `<span class="overdue-badge">Overdue</span>` : paid ? `<span class="paid-badge">Paid</span>` : '';
+        const boxCls  = paid ? 'check-box checked' : overdue ? 'check-box overdue' : 'check-box';
+        const itemCls = paid ? 'check-item is-paid' : overdue ? 'check-item is-overdue' : 'check-item';
+        const payInfo = paid    ? `Next due ${fmtDate(c.nextDueDate)}`
+                      : overdue ? `Was due ${fmtDate(c.nextDueDate)}`
+                                : `Due ${fmtDate(c.nextDueDate)||'this month'}`;
+        html += `<div class="${itemCls}">
+          <div class="${boxCls}" onclick="handleCheckboxClick('${c.id}')"></div>
+          <div class="check-info" onclick="openEditCom('${c.id}')">
+            <div class="check-name">${c.name||c.subcategory} ${badgeHtml}</div>
+            <div class="check-meta">${payInfo}${c.paymentSource?' · '+c.paymentSource:''}</div>
+          </div>
+          ${amtHtml}
+        </div>`;
+      });
+    }
+  }
+
+  // ── AUTO-PAYMENTS TAB (+ Subscriptions) ──────────
+  if (billsSubTab === 'auto') {
+    const hasContent = autos.length || subs.length;
+    if (!hasContent) {
+      html += '<div class="empty-state"><div class="empty-icon">⚡</div><p>No auto-payments or subscriptions yet.<br>Tap <strong>+ Add</strong> and choose Auto-Payment or Subscription.</p></div>';
+    } else {
+      if (autos.length) {
+        html += `<div class="com-section-label">⚡ Auto-Payments</div>`;
+        autos.forEach(c => { html += buildComItem(c); });
+      }
+      if (subs.length) {
+        html += `<div class="com-section-label" style="margin-top:${autos.length?'20px':'0'}">🔄 Subscriptions</div>`;
+        subs.forEach(c => { html += buildComItem(c); });
+      }
+    }
+  }
+
+  // ── INSTALLMENTS TAB ─────────────────────────────
+  if (billsSubTab === 'installments') {
+    if (!installs.length) {
+      html += '<div class="empty-state"><div class="empty-icon">📦</div><p>No installments set up yet.<br>Tap <strong>+ Add</strong> and choose Installment.</p></div>';
+    } else {
+      // Summary card for installments
+      const totalInstallAmt = installs.reduce((s,c) => s + (+c.amount||0) + (+c.interestPerTerm||0), 0);
+      const totalPrincipal  = installs.reduce((s,c) => s + (+c.amount||0), 0);
+      const totalInterest   = installs.reduce((s,c) => s + (+c.interestPerTerm||0), 0);
+      html += `<div class="card" style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Monthly Installment Total</div>
+        <div style="font-size:22px;font-weight:700;color:var(--gumamela);margin-bottom:4px">${peso(totalInstallAmt)}</div>
+        ${totalInterest>0?`<div style="font-size:12px;color:var(--text-light)">${peso(totalPrincipal)} principal + ${peso(totalInterest)} interest</div>`:''}
       </div>`;
-    });
+      installs.forEach(c => { html += buildComItem(c); });
+    }
   }
-
-  // ── SUBSCRIPTIONS ────────────────────────────────
-  const subs = coms.filter(c=>c.type==='subscription');
-  if (subs.length) {
-    html += `<div class="com-section-label">🔄 Subscriptions</div>`;
-    subs.forEach(c => { html += buildComItem(c); });
-  }
-
-  // ── AUTO-PAYMENTS ────────────────────────────────
-  const autos = coms.filter(c=>c.type==='auto-payment');
-  if (autos.length) {
-    html += `<div class="com-section-label">⚡ Auto-Payments</div>`;
-    autos.forEach(c => { html += buildComItem(c); });
-  }
-
-  // ── INSTALLMENTS ─────────────────────────────────
-  const installs = coms.filter(c=>c.type==='installment');
-  if (installs.length) {
-    html += `<div class="com-section-label">📦 Installments</div>`;
-    installs.forEach(c => { html += buildComItem(c); });
-  }
-
-  if (!coms.length) html += '<div class="empty-state"><div class="empty-icon">🔁</div><p>No commitments found.</p></div>';
 
   el.innerHTML = html;
-
-  // Oops: subs rendered twice due to the forEach bug above. Let me fix by rewriting.
-  // Actually this will be caught before delivery. The file is being rebuilt cleanly below.
 }
 
 function buildComItem(c) {
@@ -1276,21 +1534,68 @@ function buildComItem(c) {
   const isSoon = diff!==null && diff>=0 && diff<=7;
   const badge  = isOvd ? '<span class="due-badge overdue">Overdue</span>' : isSoon ? `<span class="due-badge due-soon">Due in ${Math.round(diff)}d</span>` : '';
   const logBtn = (isOvd||isSoon) ? `<button class="log-btn" onclick="event.stopPropagation();openConfirmPayment('${c.id}')">Log</button>` : '';
-  const installInfo = c.type==='installment'&&c.remainingTerms ? ` · ${c.remainingTerms} terms left` : '';
-  const amtClass = +c.amount > 0 ? 'com-amount' : 'com-amount zero';
-  const amtLabel = +c.amount > 0 ? peso(c.amount) : 'Set amount';
+
+  const isInstall = c.type === 'installment';
+
+  if (isInstall) {
+    const monthly  = c.monthlyPayment || ((+c.amount||0) + (+c.interestPerTerm||0));
+    const principal= c.amount || 0;
+    const interest = c.interestPerTerm || 0;
+    const hasAmt   = monthly > 0;
+
+    // End date calc
+    let endDateStr = '';
+    if (c.nextDueDate && c.remainingTerms > 0) {
+      const d = new Date(c.nextDueDate + 'T00:00:00');
+      d.setMonth(d.getMonth() + (+c.remainingTerms));
+      endDateStr = d.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' });
+    }
+
+    const paid       = (+c.totalTerms||0) - (+c.remainingTerms||0);
+    const pct        = c.totalTerms > 0 ? Math.min(100, (paid / c.totalTerms) * 100) : 0;
+    const progressBar = c.totalTerms > 0 ? `
+      <div style="margin-top:8px">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-light);margin-bottom:3px">
+          <span>${paid} of ${c.totalTerms} terms paid</span>
+          <span>${pct.toFixed(0)}%</span>
+        </div>
+        <div style="height:5px;background:var(--sinag-dark);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--pandan);border-radius:3px;transition:width 0.4s ease"></div>
+        </div>
+      </div>` : '';
+
+    return `<div class="com-item" onclick="openEditCom('${c.id}')">
+      <div class="com-left" style="flex:1;min-width:0">
+        <div class="com-name">${c.name||c.subcategory||'Installment'}</div>
+        <div class="com-meta">${c.subcategory?c.subcategory+' · ':''}${c.remainingTerms?c.remainingTerms+' terms left':''}${endDateStr?' · ends '+endDateStr:''}</div>
+        ${progressBar}
+        ${badge?`<div style="margin-top:5px">${badge}</div>`:''}
+        ${logBtn?`<div style="margin-top:4px">${logBtn}</div>`:''}
+      </div>
+      <div class="com-right">
+        ${hasAmt ? `
+          <div class="com-amount">${peso(monthly)}</div>
+          ${interest>0?`<div style="font-size:10px;color:var(--text-light);text-align:right;margin-top:2px;line-height:1.4">${peso(principal)} + ${peso(interest)}</div>`:''}
+        ` : `<div class="com-amount zero">Set amounts</div>`}
+        <div class="com-due">${c.nextDueDate?fmtDate(c.nextDueDate):''}</div>
+      </div>
+    </div>`;
+  }
+
+  // Standard non-installment item
+  const interest = 0;
+  const totalAmt = +c.amount||0;
+  const hasAmt   = totalAmt > 0;
+  const amtHtml  = hasAmt ? `<div class="com-amount">${peso(totalAmt)}</div>` : `<div class="com-amount zero">Set amount</div>`;
 
   return `<div class="com-item" onclick="openEditCom('${c.id}')">
     <div class="com-left">
       <div class="com-name">${c.name||c.subcategory||'Commitment'}</div>
-      <div class="com-meta">${c.subcategory?c.subcategory+' · ':''}${c.billingCycle||'monthly'}${installInfo}${c.cancelIfTight?' · 🚩':''}</div>
+      <div class="com-meta">${c.subcategory?c.subcategory+' · ':''}${c.billingCycle||'monthly'}${c.cancelIfTight?' · 🚩':''}</div>
       ${badge?`<div>${badge}</div>`:''}
       ${logBtn?`<div style="margin-top:4px">${logBtn}</div>`:''}
     </div>
-    <div class="com-right">
-      <div class="${amtClass}">${amtLabel}</div>
-      <div class="com-due">${c.nextDueDate?fmtDate(c.nextDueDate):''}</div>
-    </div>
+    <div class="com-right">${amtHtml}<div class="com-due">${c.nextDueDate?fmtDate(c.nextDueDate):''}</div></div>
   </div>`;
 }
 
@@ -1331,14 +1636,26 @@ function confirmLogPayment() {
 
   const payMethod = document.getElementById('confirm-pay-src').value;
   const date      = document.getElementById('confirm-date').value || today();
-  const notes     = document.getElementById('confirm-notes').value.trim();
+  const userNotes = document.getElementById('confirm-notes').value.trim();
+
+  const isInstall     = c.type === 'installment';
+  const monthlyAmt    = isInstall ? (c.monthlyPayment || (+c.amount||0) + (+c.interestPerTerm||0)) : (+c.amount||0);
+  const interest      = isInstall ? (+c.interestPerTerm||0) : 0;
+  const principal     = isInstall ? (+c.amount||0) : 0;
+  const remAfter      = isInstall ? Math.max(0, (+c.remainingTerms||0) - 1) : null;
+
+  let autoNote = 'Payment: ' + (c.name||c.subcategory);
+  if (isInstall && interest > 0) {
+    autoNote = `${c.name||c.subcategory} — ${peso(principal)} principal + ${peso(interest)} interest`;
+    if (remAfter !== null) autoNote += ` · ${remAfter} terms remaining`;
+  }
 
   D.transactions.unshift({
-    id: uid(), type: 'expense', date, amount: c.amount,
+    id: uid(), type: 'expense', date, amount: monthlyAmt,
     category: c.category, subcategory: c.subcategory,
     tags: getTags(c.subcategory||''),
     paymentMethod: payMethod,
-    notes: notes || ('Payment: ' + (c.name||c.subcategory))
+    notes: userNotes || autoNote
   });
 
   // Advance due date
@@ -1349,12 +1666,19 @@ function confirmLogPayment() {
     else                                   d.setMonth(d.getMonth()+1);
     c.nextDueDate = d.toISOString().split('T')[0];
   }
-  if (c.type==='installment' && c.remainingTerms > 0) c.remainingTerms--;
+  if (isInstall && c.remainingTerms > 0) c.remainingTerms--;
 
   save();
   closeModal('modal-confirm');
-  renderCommitments();
   pendingComId = null;
+
+  // Check if there are more overdue installments to prompt
+  const nextOverdue = (D.commitments||[]).find(x => x.type==='installment' && comIsOverdue(x) && +x.monthlyPayment > 0);
+  if (nextOverdue) {
+    setTimeout(() => openConfirmPayment(nextOverdue.id), 300);
+  } else {
+    renderCommitments();
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1698,8 +2022,11 @@ function finalizeCsvImport() {
   csvValidRows=[]; csvReviewRows=[];
 }
 function clearData() {
-  if (!confirm('Clear ALL data? Cannot be undone.')) return;
-  localStorage.removeItem(STORAGE_KEY); D=defaultData(); renderTab(currentTab);
+  if (!confirm('Clear ALL data? This cannot be undone.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  D = defaultData();
+  logSearchQuery = '';
+  switchTab('log');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1911,57 +2238,160 @@ function deleteTxn() {
 // ═══════════════════════════════════════════════════
 
 let editComId=null;
+
 function openAddCom() {
-  editComId=null;
-  document.getElementById('com-title').textContent='Add Commitment';
-  document.getElementById('com-name').value='';
-  document.getElementById('com-amount').value='';
-  document.getElementById('com-due').value=fomStr();
-  document.getElementById('com-cancel-tight').checked=false;
-  document.getElementById('com-del-row').style.display='none';
-  populateComCats(); populateComPaySrcs(); onComTypeChange();
+  // Show type picker first
+  openModal('modal-com-type');
+}
+
+function openAddComWithType(type) {
+  closeModal('modal-com-type');
+  editComId = null;
+  document.getElementById('com-title').textContent = 'Add ' + {
+    'manual-payment':'Manual Payment','auto-payment':'Auto-Payment',
+    'subscription':'Subscription','installment':'Installment'
+  }[type];
+  document.getElementById('com-name').value = '';
+  document.getElementById('com-amount').value = '';
+  document.getElementById('com-due').value = fomStr();
+  document.getElementById('com-cancel-tight').checked = false;
+  document.getElementById('com-del-row').style.display = 'none';
+  // Clear installment fields
+  ['com-principal','com-total-repay','com-total-terms','com-rem-terms','com-start-date'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('installment-calc').style.display = 'none';
+  populateComCats(); populateComPaySrcs();
+  document.getElementById('com-type').value = type;
+  onComTypeChange();
   openModal('modal-com');
 }
+
 function openEditCom(id) {
-  const c=D.commitments.find(x=>x.id===id); if(!c) return;
-  editComId=id;
-  document.getElementById('com-title').textContent='Edit Commitment';
-  document.getElementById('com-name').value=c.name||'';
-  document.getElementById('com-type').value=c.type||'subscription';
-  document.getElementById('com-amount').value=c.amount||'';
-  document.getElementById('com-cycle').value=c.billingCycle||'monthly';
-  document.getElementById('com-due').value=c.nextDueDate||fomStr();
-  document.getElementById('com-cancel-tight').checked=c.cancelIfTight||false;
-  document.getElementById('com-del-row').style.display='flex';
-  if(c.type==='installment'){document.getElementById('com-total-terms').value=c.totalTerms||'';document.getElementById('com-rem-terms').value=c.remainingTerms||'';}
+  const c = D.commitments.find(x => x.id===id); if (!c) return;
+  editComId = id;
+  document.getElementById('com-title').textContent = 'Edit Commitment';
+  document.getElementById('com-name').value = c.name||'';
+  document.getElementById('com-type').value = c.type||'manual-payment';
+  document.getElementById('com-amount').value = c.amount||'';
+  document.getElementById('com-cycle').value = c.billingCycle||'monthly';
+  document.getElementById('com-due').value = c.nextDueDate||fomStr();
+  document.getElementById('com-cancel-tight').checked = c.cancelIfTight||false;
+  document.getElementById('com-del-row').style.display = 'flex';
+  if (c.type === 'installment') {
+    document.getElementById('com-principal').value    = c.principalAmount||'';
+    document.getElementById('com-total-repay').value  = c.totalRepayment||'';
+    document.getElementById('com-total-terms').value  = c.totalTerms||'';
+    document.getElementById('com-rem-terms').value    = c.remainingTerms||'';
+    document.getElementById('com-start-date').value   = c.startDate||'';
+  }
   populateComCats(); populateComPaySrcs(); onComTypeChange();
-  setTimeout(()=>{
-    document.getElementById('com-cat').value=c.category||''; onComCatChange();
-    setTimeout(()=>{document.getElementById('com-sub').value=c.subcategory||'';document.getElementById('com-pay-src').value=c.paymentSource||'';},20);
-  },20);
+  setTimeout(() => {
+    document.getElementById('com-cat').value = c.category||''; onComCatChange();
+    setTimeout(() => {
+      document.getElementById('com-sub').value = c.subcategory||'';
+      document.getElementById('com-pay-src').value = c.paymentSource||'';
+      if (c.type==='installment') {
+        document.getElementById('com-lending-src') && (document.getElementById('com-lending-src').value = '');
+        updateInstallmentCalc();
+      }
+    }, 20);
+  }, 20);
   openModal('modal-com');
 }
-function onComTypeChange() { document.getElementById('installment-fields').style.display=document.getElementById('com-type').value==='installment'?'block':'none'; }
-function populateComCats() { const s=document.getElementById('com-cat'); s.innerHTML='<option value="">Select category</option>'; Object.keys(D.categories||{}).forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); }
-function onComCatChange()   { const cat=document.getElementById('com-cat').value; const s=document.getElementById('com-sub'); s.innerHTML='<option value="">Select subcategory</option>'; if(cat&&D.categories[cat])D.categories[cat].forEach(x=>s.innerHTML+=`<option value="${x}">${x}</option>`); }
-function populateComPaySrcs() { const s=document.getElementById('com-pay-src'); s.innerHTML='<option value="">Select source</option>'; (D.paymentSources||[]).forEach(p=>s.innerHTML+=`<option value="${p}">${p}</option>`); }
+
+function onComTypeChange() {
+  const type = document.getElementById('com-type').value;
+  const isInstall = type === 'installment';
+  document.getElementById('installment-fields').style.display = isInstall ? 'block' : 'none';
+  document.getElementById('com-amount-row').style.display     = isInstall ? 'none'  : 'block';
+  document.getElementById('com-cycle-row').style.display      = isInstall ? 'none'  : 'block';
+  document.getElementById('com-tight-row').style.display      = isInstall ? 'none'  : 'flex';
+  if (isInstall) { updateInstallmentCalc(); }
+}
+
+function updateInstallmentCalc() {
+  const principal   = parseFloat(document.getElementById('com-principal').value)   || 0;
+  const totalRepay  = parseFloat(document.getElementById('com-total-repay').value)  || 0;
+  const totalTerms  = parseInt(document.getElementById('com-total-terms').value)    || 0;
+  const remTerms    = parseInt(document.getElementById('com-rem-terms').value)      || 0;
+  const startDate   = document.getElementById('com-start-date').value;
+  const el          = document.getElementById('installment-calc');
+
+  if (!principal || !totalRepay || !totalTerms) { el.style.display='none'; return; }
+
+  const monthlyPayment   = totalRepay / totalTerms;
+  const monthlyPrincipal = principal  / totalTerms;
+  const monthlyInterest  = monthlyPayment - monthlyPrincipal;
+
+  // End date from start date + total terms, or from next due date + remaining terms
+  let endDateStr = '';
+  if (startDate) {
+    const d = new Date(startDate + 'T00:00:00');
+    d.setMonth(d.getMonth() + totalTerms);
+    endDateStr = d.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+  } else if (remTerms > 0) {
+    const due = document.getElementById('com-due').value;
+    if (due) {
+      const d = new Date(due + 'T00:00:00');
+      d.setMonth(d.getMonth() + remTerms);
+      endDateStr = d.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+    }
+  }
+
+  el.style.display = 'block';
+  el.innerHTML = `<div class="install-calc">
+    <div class="install-calc-row"><span class="install-calc-label">Monthly Principal</span><span class="install-calc-val">${peso(monthlyPrincipal)}</span></div>
+    <div class="install-calc-row"><span class="install-calc-label">Monthly Interest</span><span class="install-calc-val">${peso(monthlyInterest)}</span></div>
+    ${endDateStr?`<div class="install-calc-row"><span class="install-calc-label">Estimated End</span><span class="install-calc-val">${endDateStr}</span></div>`:''}
+    <div class="install-calc-row"><span class="install-calc-label">Monthly Payment</span><span class="install-calc-val">${peso(monthlyPayment)}</span></div>
+  </div>`;
+}
 
 function saveCom() {
-  const name=document.getElementById('com-name').value.trim();
-  const amount=parseFloat(document.getElementById('com-amount').value)||0;
-  if(!name){alert('Please enter a name.');return;}
-  const c={
-    id:editComId||uid(), name,
-    type:document.getElementById('com-type').value,
-    category:document.getElementById('com-cat').value,
-    subcategory:document.getElementById('com-sub').value,
-    amount, billingCycle:document.getElementById('com-cycle').value,
-    nextDueDate:document.getElementById('com-due').value,
-    paymentSource:document.getElementById('com-pay-src').value,
-    cancelIfTight:document.getElementById('com-cancel-tight').checked
+  const name = document.getElementById('com-name').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  const type = document.getElementById('com-type').value;
+
+  const c = {
+    id: editComId||uid(), name, type,
+    category:    document.getElementById('com-cat').value,
+    subcategory: document.getElementById('com-sub').value,
+    nextDueDate: document.getElementById('com-due').value,
+    paymentSource: document.getElementById('com-pay-src').value,
+    cancelIfTight: type !== 'installment' && document.getElementById('com-cancel-tight').checked
   };
-  if(c.type==='installment'){c.totalTerms=parseInt(document.getElementById('com-total-terms').value)||0;c.remainingTerms=parseInt(document.getElementById('com-rem-terms').value)||0;}
-  if(editComId){const idx=D.commitments.findIndex(x=>x.id===editComId);if(idx!==-1)D.commitments[idx]=c;}else{D.commitments.push(c);}
+
+  if (type === 'installment') {
+    const principal  = parseFloat(document.getElementById('com-principal').value)   || 0;
+    const totalRepay = parseFloat(document.getElementById('com-total-repay').value)  || 0;
+    const totalTerms = parseInt(document.getElementById('com-total-terms').value)    || 0;
+    const remTerms   = parseInt(document.getElementById('com-rem-terms').value)      || 0;
+    if (!principal||!totalRepay||!totalTerms) { alert('Please enter Principal, Total Repayment, and Total Terms.'); return; }
+    if (totalRepay < principal) { alert('Total Repayment cannot be less than Principal.'); return; }
+    if (remTerms > totalTerms)  { alert('Remaining Terms cannot exceed Total Terms.'); return; }
+    c.principalAmount  = principal;
+    c.totalRepayment   = totalRepay;
+    c.totalTerms       = totalTerms;
+    c.remainingTerms   = remTerms;
+    c.startDate        = document.getElementById('com-start-date').value;
+    c.billingCycle     = 'monthly';
+    // Derived per-term values used by log/display
+    c.amount           = principal  / totalTerms;            // monthly principal
+    c.interestPerTerm  = (totalRepay - principal) / totalTerms; // monthly interest
+    c.monthlyPayment   = totalRepay / totalTerms;            // total monthly
+  } else {
+    const amount = parseFloat(document.getElementById('com-amount').value)||0;
+    c.amount       = amount;
+    c.billingCycle = document.getElementById('com-cycle').value;
+  }
+
+  if (editComId) {
+    const idx = D.commitments.findIndex(x=>x.id===editComId);
+    if (idx !== -1) D.commitments[idx] = c;
+  } else {
+    D.commitments.push(c);
+  }
   save(); closeModal('modal-com'); renderCommitments();
 }
 function deleteCom() {
@@ -1969,6 +2399,14 @@ function deleteCom() {
   D.commitments=D.commitments.filter(x=>x.id!==editComId);
   save(); closeModal('modal-com'); renderCommitments();
 }
+function populateLendingSources() {
+  const s = document.getElementById('com-lending-src'); if (!s) return;
+  s.innerHTML = '<option value="">Select source</option>';
+  (D.lendingSources||[]).forEach(l => s.innerHTML += `<option value="${l}">${l}</option>`);
+}
+function populateComCats() { const s=document.getElementById('com-cat'); s.innerHTML='<option value="">Select category</option>'; Object.keys(D.categories||{}).forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); }
+function onComCatChange()   { const cat=document.getElementById('com-cat').value; const s=document.getElementById('com-sub'); s.innerHTML='<option value="">Select subcategory</option>'; if(cat&&D.categories[cat])D.categories[cat].forEach(x=>s.innerHTML+=`<option value="${x}">${x}</option>`); }
+function populateComPaySrcs() { const s=document.getElementById('com-pay-src'); s.innerHTML='<option value="">Select source</option>'; (D.paymentSources||[]).forEach(p=>s.innerHTML+=`<option value="${p}">${p}</option>`); }
 
 // ═══════════════════════════════════════════════════
 // SAVINGS GOAL MODAL
@@ -2036,13 +2474,12 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{ov.addEventListener('cl
 
 (function init() {
   renderLog();
-  // On load: prompt for any overdue manual payments
-  const overdueManuals = (D.commitments||[]).filter(c=>c.type==='manual-payment'&&comIsOverdue(c)&&+c.amount>0);
-  if (overdueManuals.length) {
-    setTimeout(()=>{
-      // Switch to commitments to surface the warnings naturally
-      // (no modal pop-up—the banner in the Bills tab is enough)
-    }, 0);
+  // On load: check for overdue installments with amounts set — prompt one at a time
+  const overdueInstalls = (D.commitments||[]).filter(c =>
+    c.type==='installment' && comIsOverdue(c) && (+c.monthlyPayment||0) > 0
+  );
+  if (overdueInstalls.length) {
+    setTimeout(() => openConfirmPayment(overdueInstalls[0].id), 700);
   }
 })();
 </script>
