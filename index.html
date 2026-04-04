@@ -1907,6 +1907,21 @@ function openConfirmPayment(id) {
   openModal('modal-confirm');
 }
 
+// Safe date advancement — uses payment date as base, preserves day-of-month,
+// clamps to last valid day if target month is shorter (e.g. Jan 31 → Feb 28)
+function advanceDate(baseDateStr, billingCycle) {
+  const base = new Date(baseDateStr + 'T00:00:00');
+  const targetDay = base.getDate();
+  let y = base.getFullYear();
+  let m = base.getMonth();
+  if      (billingCycle === 'annual')    { y += 1; }
+  else if (billingCycle === 'quarterly') { m += 3; if (m > 11) { y += Math.floor(m/12); m = m % 12; } }
+  else                                   { m += 1; if (m > 11) { y += 1; m = 0; } }
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const day = Math.min(targetDay, daysInMonth);
+  return y + '-' + String(m + 1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+}
+
 function confirmLogPayment() {
   if (!pendingComId) return;
   const c = D.commitments.find(x=>x.id===pendingComId);
@@ -1936,14 +1951,8 @@ function confirmLogPayment() {
     notes: userNotes || autoNote
   });
 
-  // Advance due date
-  if (c.nextDueDate) {
-    const d = new Date(c.nextDueDate + 'T00:00:00');
-    if      (c.billingCycle==='annual')    d.setFullYear(d.getFullYear()+1);
-    else if (c.billingCycle==='quarterly') d.setMonth(d.getMonth()+3);
-    else                                   d.setMonth(d.getMonth()+1);
-    c.nextDueDate = d.toISOString().split('T')[0];
-  }
+  // Advance due date — from payment date, preserving day-of-month
+  c.nextDueDate = advanceDate(date, c.billingCycle || 'monthly');
   if (isInstall && c.remainingTerms > 0) c.remainingTerms--;
 
   save();
