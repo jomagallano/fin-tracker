@@ -1273,7 +1273,7 @@ function renderLog() {
     html += `<div class="month-group">
       <div class="month-header" onclick="toggleMonthCollapse('${mk}')" style="cursor:pointer;user-select:none">
         <div style="display:flex;align-items:center;gap:7px">
-          <span style="font-size:13px;color:var(--text-light);transition:transform 0.2s;display:inline-block;transform:rotate(${isCollapsed?'0deg':'90deg'})"">›</span>
+          <span style="font-size:13px;color:var(--text-light);transition:transform 0.2s;display:inline-block;transform:rotate(${isCollapsed?'0deg':'90deg'})">›</span>
           <span>${monthLabel(mk)}</span>
           ${isCollapsed?`<span style="font-size:11px;color:var(--text-light)">${g.length} txn${g.length!==1?'s':''}</span>`:''}
         </div>
@@ -1291,7 +1291,7 @@ function renderLog() {
           : t.type==='savings' ? (t.savingsGoalName||'Savings')
           : `${t.category||''}${t.subcategory?' · '+t.subcategory:''}`;
         const sign = t.type==='income' ? '+' : '−';
-        html += `<div class="txn-item" onclick="openEditTxn('${t.id}')">
+        html += `<div class="txn-item" data-txnid="${t.id}">
           <div class="txn-dot ${t.type}"></div>
           <div class="txn-info">
             <div class="txn-main"><span class="txn-category">${label}</span><span class="txn-amount ${t.type}">${sign}${peso(t.amount)}</span></div>
@@ -2741,6 +2741,7 @@ function updateSplitPreview() {
   if (el && amt > 0) el.textContent = `You log ${peso(myAmt)} (${myPct}%) · They owe ${peso(theirAmt)} (${pct}%)`;
   else if (el) el.textContent = '';
 }
+function populateTxnCats() { const s=document.getElementById('txn-cat'); s.innerHTML='<option value="">Select category</option>'; Object.keys(D.categories||{}).forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); }
 function onCatChange()   { const cat=document.getElementById('txn-cat').value; const s=document.getElementById('txn-sub'); s.innerHTML='<option value="">Select subcategory</option>'; if(cat&&D.categories[cat]) D.categories[cat].forEach(x=>s.innerHTML+=`<option value="${x}">${x}</option>`); onSubChange(); }
 function onSubChange()   {
   const sub=document.getElementById('txn-sub').value;
@@ -3330,6 +3331,12 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{ov.addEventListener('cl
 // ═══════════════════════════════════════════════════
 
 (function init() {
+  // Event delegation for transaction items — more reliable than inline onclick
+  document.getElementById('tab-log').addEventListener('click', function(e) {
+    const item = e.target.closest('.txn-item[data-txnid]');
+    if (item) openEditTxn(item.dataset.txnid);
+  });
+
   renderLog();
   const overdueInstalls = (D.commitments||[]).filter(c =>
     c.type==='installment' && comIsOverdue(c) && (+c.monthlyPayment||0) > 0
