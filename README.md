@@ -1,4 +1,4 @@
-#Barya Tracker 💰
+# Barya Tracker 💰
 
 A personal finance tracker built as a single HTML file. No backend, no database, no login — everything stays on your device.
 
