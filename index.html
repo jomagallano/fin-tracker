@@ -2672,22 +2672,44 @@ function openAddTransaction() {
   openModal('modal-txn');
 }
 function openEditTxn(id) {
-  const t=D.transactions.find(x=>x.id===id); if (!t) return;
-  editTxnId=id;
-  document.getElementById('txn-title').textContent='Edit Transaction';
-  document.getElementById('txn-amount').value=t.amount;
-  document.getElementById('txn-date').value=t.date;
-  document.getElementById('txn-notes').value=t.notes||'';
-  document.getElementById('txn-del-row').style.display='flex';
+  const t = D.transactions.find(x => x.id===id); if (!t) return;
+  editTxnId = id;
+  document.getElementById('txn-title').textContent = 'Edit Transaction';
+  document.getElementById('txn-date').value  = t.date;
+  document.getElementById('txn-notes').value = t.notes||'';
+  document.getElementById('txn-del-row').style.display = 'flex';
+
+  // Always reset split state first
+  document.getElementById('txn-split').checked = false;
+  document.getElementById('split-details').style.display = 'none';
+  document.getElementById('split-preview').textContent   = '';
+
   populateTxnCats(); populatePayMethods(); populateIncomeSrcs(); populateGoalSelect();
   setTxnType(t.type);
-  if (t.type==='expense') {
-    document.getElementById('txn-cat').value=t.category||''; onCatChange();
-    setTimeout(()=>{ document.getElementById('txn-sub').value=t.subcategory||''; onSubChange(); if(t.paymentMethod) document.getElementById('txn-pay-method').value=t.paymentMethod; },20);
-  } else if (t.type==='income') {
-    document.getElementById('txn-income-src').value=t.incomeSource||'';
+
+  if (t.type === 'expense') {
+    // Show the actual logged amount (already halved if split)
+    document.getElementById('txn-amount').value = t.isSplit ? t.fullAmount : t.amount;
+    document.getElementById('txn-cat').value = t.category||''; onCatChange();
+    setTimeout(() => {
+      document.getElementById('txn-sub').value = t.subcategory||''; onSubChange();
+      if (t.paymentMethod) document.getElementById('txn-pay-method').value = t.paymentMethod;
+      // Restore split state if it was a split transaction
+      if (t.isSplit) {
+        populateSplitPersons();
+        document.getElementById('txn-split').checked = true;
+        document.getElementById('split-details').style.display = 'block';
+        document.getElementById('txn-split-person').value = t.splitWith||'';
+        document.getElementById('txn-split-pct').value   = t.splitPct||50;
+        updateSplitPreview();
+      }
+    }, 20);
+  } else if (t.type === 'income') {
+    document.getElementById('txn-amount').value = t.amount;
+    document.getElementById('txn-income-src').value = t.incomeSource||'';
   } else {
-    document.getElementById('txn-goal').value=t.savingsGoalId||'';
+    document.getElementById('txn-amount').value = t.amount;
+    document.getElementById('txn-goal').value = t.savingsGoalId||'';
   }
   openModal('modal-txn');
 }
@@ -2736,9 +2758,9 @@ function saveTxn() {
   const date = document.getElementById('txn-date').value;
   if (!fullAmount||fullAmount<=0||!date){alert('Please enter amount and date.');return;}
 
-  // Split logic
-  const isSplit  = txnType==='expense' && document.getElementById('txn-split').checked;
-  const splitPct = isSplit ? (parseFloat(document.getElementById('txn-split-pct').value)||50) : 0;
+  // Split logic — use fullAmount input (we always show full amount in the field)
+  const isSplit     = txnType==='expense' && document.getElementById('txn-split').checked;
+  const splitPct    = isSplit ? (parseFloat(document.getElementById('txn-split-pct').value)||50) : 0;
   const splitPerson = isSplit ? document.getElementById('txn-split-person').value : '';
   if (isSplit && !splitPerson) { alert('Please select who you are splitting with.'); return; }
   const myPct    = isSplit ? (100 - splitPct) : 100;
