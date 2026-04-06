@@ -205,7 +205,21 @@ textarea { resize: vertical; min-height: 64px; }
 .month-nav-label { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 600; }
 .chart-wrap { position: relative; }
 
-/* ── SHARED EXPENSES ────────────────────────────── */
+/* ── SWIPE TO DELETE ────────────────────────────── */
+.swipe-wrap {
+  position: relative; overflow: hidden; border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.swipe-delete-bg {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 80px;
+  background: var(--gumamela); display: flex; align-items: center;
+  justify-content: center; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.swipe-delete-bg span { color: white; font-size: 22px; }
+.swipe-content {
+  position: relative; background: white; transition: transform 0.2s ease;
+  will-change: transform; touch-action: pan-y;
+}
 .person-card {
   background: white; border-radius: var(--radius); padding: 16px;
   margin-bottom: 12px; box-shadow: var(--shadow); cursor: pointer;
@@ -3153,8 +3167,12 @@ function getPersonBalance(person) {
 
 function renderShared() {
   const el = document.getElementById('tab-shared');
-  if (sharedViewPerson) el.innerHTML = renderPersonDetail(sharedViewPerson);
-  else renderSharedList(el);
+  if (sharedViewPerson) {
+    el.innerHTML = renderPersonDetail(sharedViewPerson);
+    attachSwipeListeners();
+  } else {
+    renderSharedList(el);
+  }
 }
 
 function renderSharedList(el) {
@@ -3209,16 +3227,19 @@ function renderPersonDetail(person) {
     unsettledRec.forEach(item => {
       const amt = item.remainingAmount || item.theirAmount;
       const isPartial = item.remainingAmount && item.remainingAmount < item.theirAmount;
-      html += `<div class="shared-item">
-        <div class="shared-item-header">
-          <div style="flex:1;min-width:0">
-            <div class="shared-item-desc">${item.description}</div>
-            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}
-              · Full: ${peso(item.fullAmount)} (${item.splitPct}% their share)</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div class="shared-item-amt receivable">+${peso(amt)}</div>
-            <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--pandan);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+      html += `<div class="swipe-wrap" id="swrap-${item.id}">
+        <div class="swipe-delete-bg"><span>🗑️</span></div>
+        <div class="swipe-content shared-item" style="margin-bottom:0">
+          <div class="shared-item-header">
+            <div style="flex:1;min-width:0">
+              <div class="shared-item-desc">${item.description}</div>
+              <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}
+                · Full: ${peso(item.fullAmount)} (${item.splitPct}% their share)</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="shared-item-amt receivable">+${peso(amt)}</div>
+              <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--pandan);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -3232,15 +3253,18 @@ function renderPersonDetail(person) {
     unsettledPay.forEach(item => {
       const amt = item.remainingAmount || item.theirAmount;
       const isPartial = item.remainingAmount && item.remainingAmount < item.theirAmount;
-      html += `<div class="shared-item">
-        <div class="shared-item-header">
-          <div style="flex:1;min-width:0">
-            <div class="shared-item-desc">${item.description}</div>
-            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div class="shared-item-amt payable">−${peso(amt)}</div>
-            <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--gumamela);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+      html += `<div class="swipe-wrap" id="swrap-${item.id}">
+        <div class="swipe-delete-bg"><span>🗑️</span></div>
+        <div class="swipe-content shared-item" style="margin-bottom:0">
+          <div class="shared-item-header">
+            <div style="flex:1;min-width:0">
+              <div class="shared-item-desc">${item.description}</div>
+              <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div class="shared-item-amt payable">−${peso(amt)}</div>
+              <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--gumamela);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -3301,8 +3325,69 @@ function toggleSettledItems(person) {
   if (btn) btn.querySelector('span').textContent = open ? '▶' : '▼';
 }
 
+function attachSwipeListeners() {
+  document.querySelectorAll('.swipe-wrap').forEach(wrap => {
+    const content = wrap.querySelector('.swipe-content');
+    if (!content) return;
+    let startX = 0, currentX = 0, swiping = false, opened = false;
+    const THRESHOLD = 60;
+
+    content.addEventListener('touchstart', e => {
+      startX   = e.touches[0].clientX;
+      swiping  = true;
+      content.style.transition = 'none';
+    }, { passive: true });
+
+    content.addEventListener('touchmove', e => {
+      if (!swiping) return;
+      currentX = e.touches[0].clientX;
+      const dx = Math.min(0, currentX - startX);
+      if (dx < 0) content.style.transform = `translateX(${Math.max(dx, -80)}px)`;
+    }, { passive: true });
+
+    content.addEventListener('touchend', () => {
+      if (!swiping) return;
+      swiping = false;
+      content.style.transition = 'transform 0.2s ease';
+      const dx = currentX - startX;
+      if (dx < -THRESHOLD) {
+        content.style.transform = 'translateX(-80px)';
+        opened = true;
+        // Tap anywhere else to close
+        setTimeout(() => {
+          document.addEventListener('touchstart', function closeSwipe(e) {
+            if (!wrap.contains(e.target)) {
+              content.style.transform = 'translateX(0)';
+              opened = false;
+              document.removeEventListener('touchstart', closeSwipe);
+            }
+          }, { once: false });
+        }, 100);
+      } else {
+        content.style.transform = 'translateX(0)';
+        opened = false;
+      }
+    });
+
+    // Tap on delete bg
+    const bg = wrap.querySelector('.swipe-delete-bg');
+    if (bg) {
+      bg.addEventListener('click', () => {
+        const itemId = wrap.id.replace('swrap-','');
+        deleteSharedItem(itemId);
+      });
+    }
+  });
+}
+
+function deleteSharedItem(itemId) {
+  if (!confirm('Delete this shared item? This cannot be undone.')) return;
+  D.sharedItems = (D.sharedItems||[]).filter(i => i.id !== itemId);
+  save();
+  renderShared();
+}
+
 function markItemSettled(itemId) {
-  const item = (D.sharedItems||[]).find(i=>i.id===itemId);
   if (!item) return;
   item.settled = true;
   item.settledAt = today();
