@@ -3388,6 +3388,7 @@ function deleteSharedItem(itemId) {
 }
 
 function markItemSettled(itemId) {
+  const item = (D.sharedItems||[]).find(i => i.id === itemId);
   if (!item) return;
   item.settled = true;
   item.settledAt = today();
