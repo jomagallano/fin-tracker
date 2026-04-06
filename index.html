@@ -508,32 +508,49 @@ textarea { resize: vertical; min-height: 64px; }
           <option value="">Select method</option>
         </select>
       </div>
-      <!-- SPLIT EXPENSE -->
-      <div id="split-row" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:2px">
+      <!-- SHARED WITH -->
+      <div id="shared-row" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:2px">
         <div class="toggle-row" style="padding:0;border:none">
           <div>
-            <span style="font-size:14px;font-weight:500">Split expense</span>
-            <div style="font-size:11px;color:var(--text-light);margin-top:2px">Only your half will be logged</div>
+            <span style="font-size:14px;font-weight:500">Shared with someone?</span>
+            <div style="font-size:11px;color:var(--text-light);margin-top:2px">Only your half will be logged as expense</div>
           </div>
           <label class="toggle">
-            <input type="checkbox" id="txn-split" onchange="onSplitToggle()">
+            <input type="checkbox" id="txn-shared-toggle" onchange="onSharedToggle()">
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div id="split-details" style="display:none;margin-top:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="form-group" style="margin:0">
-              <label>Split with</label>
-              <select id="txn-split-person">
-                <option value="">Select person</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin:0">
-              <label>Their share (%)</label>
-              <input type="number" id="txn-split-pct" value="50" min="1" max="99" inputmode="numeric" oninput="updateSplitPreview()">
+        <div id="shared-details" style="display:none;margin-top:12px">
+          <div class="form-group" style="margin-bottom:10px">
+            <label>Split with</label>
+            <select id="txn-shared-person" onchange="updateSharedPreview()">
+              <option value="">Select person</option>
+            </select>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em">Direction</label>
+            <div style="display:flex;gap:8px">
+              <button id="dir-they-owe" type="button" onclick="setSharedDir('receivable')"
+                style="flex:1;padding:9px;border-radius:var(--radius-sm);border:2px solid var(--pandan);background:var(--pandan-light);color:var(--pandan);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+                📤 They owe me
+              </button>
+              <button id="dir-i-owe" type="button" onclick="setSharedDir('payable')"
+                style="flex:1;padding:9px;border-radius:var(--radius-sm);border:2px solid var(--border);background:white;color:var(--text-light);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer">
+                📥 I owe them
+              </button>
             </div>
           </div>
-          <div id="split-preview" style="font-size:12px;color:var(--pandan);font-weight:500;text-align:center"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div class="form-group" style="margin:0">
+              <label>Their share (%)</label>
+              <input type="number" id="txn-shared-pct" value="50" min="1" max="99" inputmode="numeric" oninput="onSharedPctChange()">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Their amount (₱)</label>
+              <input type="number" id="txn-shared-amt" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="onSharedAmtChange()">
+            </div>
+          </div>
+          <div id="shared-preview" style="font-size:12px;font-weight:500;text-align:center;padding:6px 0"></div>
         </div>
       </div>
     </div>
@@ -828,46 +845,20 @@ textarea { resize: vertical; min-height: 64px; }
   </div>
 </div>
 
-<!-- ADD SHARED ITEM (manual payable) -->
-<div class="modal-overlay" id="modal-shared-add">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div class="modal-title">Log What I Owe</div>
-    <div class="form-group">
-      <label>Person</label>
-      <select id="shared-add-person">
-        <option value="">Select person</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Description</label>
-      <input type="text" id="shared-add-desc" placeholder="e.g. Dinner at Manam">
-    </div>
-    <div class="form-group">
-      <label>Amount I Owe (₱)</label>
-      <input type="number" id="shared-add-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
-    </div>
-    <div class="form-group">
-      <label>Date</label>
-      <input type="date" id="shared-add-date">
-    </div>
-    <div class="form-group">
-      <label>Notes (optional)</label>
-      <input type="text" id="shared-add-notes" placeholder="Optional notes…">
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="closeModal('modal-shared-add')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSharedPayable()">Save</button>
-    </div>
-  </div>
-</div>
-
 <!-- LOG SETTLEMENT -->
 <div class="modal-overlay" id="modal-settlement">
-  <div class="modal">
+  <div class="modal" style="max-height:92vh">
     <div class="modal-handle"></div>
     <div class="modal-title" id="settlement-title">Log Settlement</div>
-    <p id="settlement-context" style="font-size:13px;color:var(--text-mid);margin-bottom:14px;line-height:1.6"></p>
+    <div id="settlement-net-summary" style="background:var(--sinag-dark);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:14px;font-size:13px;line-height:1.6"></div>
+    <!-- Collapsible breakdown -->
+    <div style="margin-bottom:14px">
+      <button onclick="toggleSettlementBreakdown()" id="breakdown-toggle"
+        style="border:none;background:none;color:var(--pandan);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px">
+        <span id="breakdown-arrow">▶</span> View unsettled items
+      </button>
+      <div id="settlement-breakdown" style="display:none;margin-top:10px;max-height:200px;overflow-y:auto"></div>
+    </div>
     <div class="form-group">
       <label>Direction</label>
       <select id="settlement-direction">
@@ -876,8 +867,14 @@ textarea { resize: vertical; min-height: 64px; }
       </select>
     </div>
     <div class="form-group">
-      <label>Amount (₱)</label>
+      <label>Amount (₱) <span style="font-weight:400;color:var(--text-light)">— leave blank to mark items individually above</span></label>
       <input type="number" id="settlement-amount" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label>Payment Source</label>
+      <select id="settlement-pay-src">
+        <option value="">Select source</option>
+      </select>
     </div>
     <div class="form-group">
       <label>Date</label>
@@ -2674,9 +2671,10 @@ function openAddTransaction() {
   document.getElementById('txn-date').value=today();
   document.getElementById('txn-notes').value='';
   document.getElementById('txn-del-row').style.display='none';
-  document.getElementById('txn-split').checked=false;
-  document.getElementById('split-details').style.display='none';
-  document.getElementById('split-preview').textContent='';
+  document.getElementById('txn-shared-toggle').checked=false;
+  document.getElementById('shared-details').style.display='none';
+  document.getElementById('shared-preview').textContent='';
+  sharedDir='receivable';
   setTxnType('expense'); populateTxnCats(); populatePayMethods(); populateIncomeSrcs(); populateGoalSelect();
   openModal('modal-txn');
 }
@@ -2688,29 +2686,31 @@ function openEditTxn(id) {
   document.getElementById('txn-notes').value = t.notes||'';
   document.getElementById('txn-del-row').style.display = 'flex';
 
-  // Always reset split state first
-  document.getElementById('txn-split').checked = false;
-  document.getElementById('split-details').style.display = 'none';
-  document.getElementById('split-preview').textContent   = '';
+  // Reset shared state
+  document.getElementById('txn-shared-toggle').checked = false;
+  document.getElementById('shared-details').style.display = 'none';
+  document.getElementById('shared-preview').textContent = '';
+  sharedDir = 'receivable';
 
   populateTxnCats(); populatePayMethods(); populateIncomeSrcs(); populateGoalSelect();
   setTxnType(t.type);
 
   if (t.type === 'expense') {
-    // Show the actual logged amount (already halved if split)
-    document.getElementById('txn-amount').value = t.isSplit ? t.fullAmount : t.amount;
+    document.getElementById('txn-amount').value = t.isShared ? t.fullAmount : t.amount;
     document.getElementById('txn-cat').value = t.category||''; onCatChange();
     setTimeout(() => {
       document.getElementById('txn-sub').value = t.subcategory||''; onSubChange();
       if (t.paymentMethod) document.getElementById('txn-pay-method').value = t.paymentMethod;
-      // Restore split state if it was a split transaction
-      if (t.isSplit) {
+      if (t.isShared) {
         populateSplitPersons();
-        document.getElementById('txn-split').checked = true;
-        document.getElementById('split-details').style.display = 'block';
-        document.getElementById('txn-split-person').value = t.splitWith||'';
-        document.getElementById('txn-split-pct').value   = t.splitPct||50;
-        updateSplitPreview();
+        document.getElementById('txn-shared-toggle').checked = true;
+        document.getElementById('shared-details').style.display = 'block';
+        document.getElementById('txn-shared-person').value = t.sharedWith||'';
+        sharedDir = t.sharedType || 'receivable';
+        document.getElementById('txn-shared-pct').value  = t.sharedPct||50;
+        document.getElementById('txn-shared-amt').value  = t.theirAmount||'';
+        setSharedDir(sharedDir);
+        updateSharedPreview();
       }
     }, 20);
   } else if (t.type === 'income') {
@@ -2730,25 +2730,55 @@ function setTxnType(t) {
   document.getElementById('income-fields').style.display=t==='income'?'block':'none';
   document.getElementById('savings-fields').style.display=t==='savings'?'block':'none';
 }
-function onSplitToggle() {
-  const on = document.getElementById('txn-split').checked;
-  document.getElementById('split-details').style.display = on ? 'block' : 'none';
-  if (on) { populateSplitPersons(); updateSplitPreview(); }
+function onSharedToggle() {
+  const on = document.getElementById('txn-shared-toggle').checked;
+  document.getElementById('shared-details').style.display = on ? 'block' : 'none';
+  if (on) { populateSplitPersons(); setSharedDir('receivable'); updateSharedPreview(); }
 }
+
+function setSharedDir(dir) {
+  sharedDir = dir;
+  const theyBtn = document.getElementById('dir-they-owe');
+  const iBtn    = document.getElementById('dir-i-owe');
+  if (dir === 'receivable') {
+    theyBtn.style.cssText += ';border:2px solid var(--pandan);background:var(--pandan-light);color:var(--pandan);font-weight:700';
+    iBtn.style.cssText    += ';border:2px solid var(--border);background:white;color:var(--text-light);font-weight:600';
+  } else {
+    iBtn.style.cssText    += ';border:2px solid var(--gumamela);background:var(--gumamela-light);color:var(--gumamela);font-weight:700';
+    theyBtn.style.cssText += ';border:2px solid var(--border);background:white;color:var(--text-light);font-weight:600';
+  }
+  updateSharedPreview();
+}
+
+function onSharedPctChange() {
+  const fullAmt = parseFloat(document.getElementById('txn-amount').value) || 0;
+  const pct     = parseFloat(document.getElementById('txn-shared-pct').value) || 50;
+  document.getElementById('txn-shared-amt').value = fullAmt > 0 ? (fullAmt * pct / 100).toFixed(2) : '';
+  updateSharedPreview();
+}
+
+function onSharedAmtChange() {
+  const fullAmt  = parseFloat(document.getElementById('txn-amount').value) || 0;
+  const theirAmt = parseFloat(document.getElementById('txn-shared-amt').value) || 0;
+  if (fullAmt > 0) document.getElementById('txn-shared-pct').value = ((theirAmt / fullAmt) * 100).toFixed(0);
+  updateSharedPreview();
+}
+
+function updateSharedPreview() {
+  const fullAmt  = parseFloat(document.getElementById('txn-amount').value) || 0;
+  const theirAmt = parseFloat(document.getElementById('txn-shared-amt').value) || 0;
+  const myAmt    = fullAmt - theirAmt;
+  const el       = document.getElementById('shared-preview');
+  if (!el) return;
+  if (!fullAmt) { el.textContent = ''; return; }
+  const dir = sharedDir === 'receivable' ? 'they owe you' : 'you owe them';
+  el.innerHTML = `<span style="color:var(--pandan)">You log ${peso(myAmt)}</span> · <span style="color:var(--gumamela)">${dir} ${peso(theirAmt)}</span>`;
+}
+
 function populateSplitPersons() {
-  const s = document.getElementById('txn-split-person');
+  const s = document.getElementById('txn-shared-person');
   s.innerHTML = '<option value="">Select person</option>';
   (D.sharedPeople||[]).forEach(p => s.innerHTML += `<option value="${p}">${p}</option>`);
-}
-function updateSplitPreview() {
-  const amt  = parseFloat(document.getElementById('txn-amount').value) || 0;
-  const pct  = parseFloat(document.getElementById('txn-split-pct').value) || 50;
-  const myPct = 100 - pct;
-  const myAmt = amt * myPct / 100;
-  const theirAmt = amt * pct / 100;
-  const el = document.getElementById('split-preview');
-  if (el && amt > 0) el.textContent = `You log ${peso(myAmt)} (${myPct}%) · They owe ${peso(theirAmt)} (${pct}%)`;
-  else if (el) el.textContent = '';
 }
 function populateTxnCats() { const s=document.getElementById('txn-cat'); s.innerHTML='<option value="">Select category</option>'; Object.keys(D.categories||{}).forEach(c=>s.innerHTML+=`<option value="${c}">${c}</option>`); }
 function onCatChange()   { const cat=document.getElementById('txn-cat').value; const s=document.getElementById('txn-sub'); s.innerHTML='<option value="">Select subcategory</option>'; if(cat&&D.categories[cat]) D.categories[cat].forEach(x=>s.innerHTML+=`<option value="${x}">${x}</option>`); onSubChange(); }
@@ -2768,17 +2798,16 @@ function saveTxn() {
   const date = document.getElementById('txn-date').value;
   if (!fullAmount||fullAmount<=0||!date){alert('Please enter amount and date.');return;}
 
-  // Split logic — use fullAmount input (we always show full amount in the field)
-  const isSplit     = txnType==='expense' && document.getElementById('txn-split').checked;
-  const splitPct    = isSplit ? (parseFloat(document.getElementById('txn-split-pct').value)||50) : 0;
-  const splitPerson = isSplit ? document.getElementById('txn-split-person').value : '';
-  if (isSplit && !splitPerson) { alert('Please select who you are splitting with.'); return; }
-  const myPct    = isSplit ? (100 - splitPct) : 100;
-  const amount   = fullAmount * myPct / 100;
-  const theirAmt = fullAmount * splitPct / 100;
+  // Shared logic
+  const isShared     = txnType==='expense' && document.getElementById('txn-shared-toggle').checked;
+  const sharedPerson = isShared ? document.getElementById('txn-shared-person').value : '';
+  if (isShared && !sharedPerson) { alert('Please select who you are sharing with.'); return; }
+  const theirAmt = isShared ? (parseFloat(document.getElementById('txn-shared-amt').value)||fullAmount*0.5) : 0;
+  const sharedPct = isShared && fullAmount > 0 ? Math.round(theirAmt/fullAmount*100) : 50;
+  const amount = isShared ? (fullAmount - theirAmt) : fullAmount;
 
   const t={id:editTxnId||uid(),type:txnType,amount,date,notes:document.getElementById('txn-notes').value.trim()};
-  if (isSplit) { t.isSplit=true; t.splitWith=splitPerson; t.splitPct=splitPct; t.fullAmount=fullAmount; }
+  if (isShared) { t.isShared=true; t.sharedWith=sharedPerson; t.sharedType=sharedDir; t.sharedPct=sharedPct; t.fullAmount=fullAmount; t.theirAmount=theirAmt; }
 
   if(txnType==='expense'){
     t.category=document.getElementById('txn-cat').value; t.subcategory=document.getElementById('txn-sub').value;
@@ -2797,15 +2826,14 @@ function saveTxn() {
   }
   if(editTxnId){const idx=D.transactions.findIndex(x=>x.id===editTxnId);if(idx!==-1)D.transactions[idx]=t;}else{D.transactions.unshift(t);}
 
-  // Create shared item (receivable) if split
-  if (isSplit && !editTxnId) {
+  // Create shared item if new (not editing)
+  if (isShared && !editTxnId) {
     if (!D.sharedItems) D.sharedItems = [];
     D.sharedItems.push({
-      id: uid(), type: 'receivable', person: splitPerson,
+      id: uid(), type: sharedDir, person: sharedPerson,
       description: `${t.category||'Expense'}${t.subcategory?' · '+t.subcategory:''}`,
-      fullAmount, myAmount: amount, theirAmount: theirAmt, splitPct,
-      date, txnId: t.id,
-      notes: t.notes || ''
+      fullAmount, myAmount: amount, theirAmount: theirAmt, splitPct: sharedPct,
+      date, txnId: t.id, notes: t.notes||'', settled: false
     });
   }
 
@@ -3109,54 +3137,39 @@ function confirmSavingsLog() {
 // SHARED EXPENSES TAB
 // ═══════════════════════════════════════════════════
 
-let sharedViewPerson = null; // null = list view, string = person detail view
+let sharedViewPerson = null;
+let sharedDir = 'receivable'; // default direction for new shared txn
 
+// Balance uses item.settled flag — unsettled items only
 function getPersonBalance(person) {
   const items = (D.sharedItems||[]).filter(i => i.person === person);
-  const setts = (D.settlements||[]).filter(s => s.person === person);
-
-  const theyOweMe = items.filter(i => i.type==='receivable').reduce((s,i) => s + (+i.theirAmount||0), 0);
-  const iOweThem  = items.filter(i => i.type==='payable').reduce((s,i)   => s + (+i.theirAmount||0), 0);
-
-  const theyPaidMe = setts.filter(s => s.direction==='they-paid-me').reduce((s,x) => s + +x.amount, 0);
-  const iPaidThem  = setts.filter(s => s.direction==='i-paid-them').reduce((s,x)  => s + +x.amount, 0);
-
-  const netTheyOwe = theyOweMe - theyPaidMe;
-  const netIOwe    = iOweThem  - iPaidThem;
-  const net        = netTheyOwe - netIOwe; // positive = they owe me, negative = I owe them
-
-  return { theyOweMe, iOweThem, theyPaidMe, iPaidThem, netTheyOwe, netIOwe, net };
+  const theyOweMe = items.filter(i => i.type==='receivable' && !i.settled)
+    .reduce((s,i) => s + (+i.remainingAmount || +i.theirAmount||0), 0);
+  const iOweThem  = items.filter(i => i.type==='payable' && !i.settled)
+    .reduce((s,i) => s + (+i.remainingAmount || +i.theirAmount||0), 0);
+  const net = theyOweMe - iOweThem;
+  return { theyOweMe, iOweThem, net };
 }
 
 function renderShared() {
   const el = document.getElementById('tab-shared');
-  if (sharedViewPerson) {
-    el.innerHTML = renderPersonDetail(sharedViewPerson);
-  } else {
-    renderSharedList(el);
-  }
+  if (sharedViewPerson) el.innerHTML = renderPersonDetail(sharedViewPerson);
+  else renderSharedList(el);
 }
 
 function renderSharedList(el) {
   const people = D.sharedPeople || [];
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-    <div class="section-title" style="margin:0">Shared Expenses</div>
-    <button class="btn btn-primary btn-sm" onclick="openSharedAdd()">+ I Owe</button>
-  </div>`;
-
+  let html = `<div class="section-title">Shared Expenses</div>`;
   if (!people.length) {
     html += '<div class="empty-state"><div class="empty-icon">🤝</div><p>No people yet.<br>Add people in Settings → People.</p></div>';
   } else {
     people.forEach(person => {
       const b = getPersonBalance(person);
-      const netAbs = Math.abs(b.net);
+      const netAbs  = Math.abs(b.net);
       const netLabel = b.net > 0.005 ? `${person} owes you` : b.net < -0.005 ? `You owe ${person}` : 'All settled';
       const netColor = b.net > 0.005 ? 'var(--pandan)' : b.net < -0.005 ? 'var(--gumamela)' : 'var(--text-light)';
       html += `<div class="person-card" onclick="sharedViewPerson='${person}';renderShared()">
-        <div>
-          <div class="person-name">${person}</div>
-          <div class="person-meta">${netLabel}</div>
-        </div>
+        <div><div class="person-name">${person}</div><div class="person-meta">${netLabel}</div></div>
         <div class="person-net">
           <div class="person-net-amt" style="color:${netColor}">${b.net===0?'₱0.00':peso(netAbs)}</div>
           <div class="person-net-label">net balance</div>
@@ -3169,8 +3182,8 @@ function renderSharedList(el) {
 
 function renderPersonDetail(person) {
   const b = getPersonBalance(person);
-  const items = (D.sharedItems||[]).filter(i => i.person===person).sort((a,x) => x.date.localeCompare(a.date));
-  const setts = (D.settlements||[]).filter(s => s.person===person).sort((a,x) => x.date.localeCompare(a.date));
+  const items = (D.sharedItems||[]).filter(i => i.person===person);
+  const setts = (D.settlements||[]).filter(s => s.person===person).sort((a,x)=>x.date.localeCompare(a.date));
 
   const netAbs   = Math.abs(b.net);
   const netClass = b.net > 0.005 ? 'they-owe' : b.net < -0.005 ? 'i-owe' : 'settled';
@@ -3182,59 +3195,89 @@ function renderPersonDetail(person) {
     <div class="section-title" style="margin:0">${person}</div>
     <div style="flex:1"></div>
     <button class="btn btn-primary btn-sm" onclick="openSettlement('${person}')">Settle</button>
-    <button class="btn btn-ghost btn-sm" onclick="openSharedAdd('${person}')">+ I Owe</button>
   </div>
-
   <div class="net-banner ${netClass}">
     <div class="net-banner-label" style="color:${netColor}">${netLabel}</div>
     <div class="net-banner-amt" style="color:${netColor}">${peso(netAbs)}</div>
-    <div class="net-banner-sub">${peso(b.theyOweMe)} they owe − ${peso(b.iOweThem)} you owe · Paid: ${peso(b.theyPaidMe + b.iPaidThem)}</div>
+    <div class="net-banner-sub">${peso(b.theyOweMe)} they owe · ${peso(b.iOweThem)} you owe</div>
   </div>`;
 
-  // They owe me section
-  const receivables = items.filter(i => i.type==='receivable');
-  if (receivables.length) {
+  // Unsettled receivables
+  const unsettledRec = items.filter(i=>i.type==='receivable'&&!i.settled).sort((a,x)=>x.date.localeCompare(a.date));
+  if (unsettledRec.length) {
     html += `<div class="section-title" style="margin-bottom:8px">📤 ${person} owes me</div>`;
-    receivables.forEach(item => {
+    unsettledRec.forEach(item => {
+      const amt = item.remainingAmount || item.theirAmount;
+      const isPartial = item.remainingAmount && item.remainingAmount < item.theirAmount;
       html += `<div class="shared-item">
         <div class="shared-item-header">
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="shared-item-desc">${item.description}</div>
-            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''} · Full: ${peso(item.fullAmount)} (${item.splitPct}% their share)</div>
+            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}
+              · Full: ${peso(item.fullAmount)} (${item.splitPct}% their share)</div>
           </div>
-          <div class="shared-item-amt receivable">+${peso(item.theirAmount)}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="shared-item-amt receivable">+${peso(amt)}</div>
+            <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--pandan);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+          </div>
         </div>
       </div>`;
     });
   }
 
-  // I owe them section
-  const payables = items.filter(i => i.type==='payable');
-  if (payables.length) {
+  // Unsettled payables
+  const unsettledPay = items.filter(i=>i.type==='payable'&&!i.settled).sort((a,x)=>x.date.localeCompare(a.date));
+  if (unsettledPay.length) {
     html += `<div class="section-title" style="margin-top:18px;margin-bottom:8px">📥 I owe ${person}</div>`;
-    payables.forEach(item => {
+    unsettledPay.forEach(item => {
+      const amt = item.remainingAmount || item.theirAmount;
+      const isPartial = item.remainingAmount && item.remainingAmount < item.theirAmount;
       html += `<div class="shared-item">
         <div class="shared-item-header">
-          <div>
+          <div style="flex:1;min-width:0">
             <div class="shared-item-desc">${item.description}</div>
-            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}</div>
+            <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''}${isPartial?` · partially settled`:''}</div>
           </div>
-          <div class="shared-item-amt payable">−${peso(item.theirAmount)}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="shared-item-amt payable">−${peso(amt)}</div>
+            <button onclick="markItemSettled('${item.id}')" style="margin-top:4px;border:none;background:var(--gumamela);color:white;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;cursor:pointer">Mark settled</button>
+          </div>
         </div>
       </div>`;
     });
   }
 
-  // Settlements log
+  // Settled items — collapsible, newest to oldest
+  const settledItems = items.filter(i=>i.settled).sort((a,x)=>x.date.localeCompare(a.date));
+  if (settledItems.length) {
+    html += `<div style="margin-top:18px">
+      <button onclick="toggleSettledItems('${person}')" id="settled-toggle-${person}"
+        style="border:none;background:none;color:var(--text-light);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px">
+        <span>▶</span> Settled items (${settledItems.length})
+      </button>
+      <div id="settled-items-${person}" style="display:none;margin-top:10px">`;
+    settledItems.forEach(item => {
+      const dir = item.type==='receivable' ? '📤' : '📥';
+      html += `<div class="shared-item shared-settled">
+        <div class="shared-item-header">
+          <div><div class="shared-item-desc">${dir} ${item.description}</div>
+          <div class="shared-item-meta">${fmtDate(item.date)}${item.notes?' · '+item.notes:''} · ✓ Settled</div></div>
+          <div class="shared-item-amt ${item.type==='receivable'?'receivable':'payable'}">${item.type==='receivable'?'+':'−'}${peso(item.theirAmount)}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Settlement history
   if (setts.length) {
-    html += `<div class="section-title" style="margin-top:18px;margin-bottom:8px">🧾 Settlement History</div>
-    <div class="card">`;
+    html += `<div class="section-title" style="margin-top:18px;margin-bottom:8px">🧾 Settlement History</div><div class="card">`;
     setts.forEach(s => {
-      const isIn = s.direction === 'they-paid-me';
+      const isIn = s.direction==='they-paid-me';
       html += `<div class="settlement-item">
         <div>
-          <div style="font-weight:500">${isIn ? `${person} paid you` : `You paid ${person}`}</div>
-          <div style="font-size:11px;color:var(--text-light);margin-top:2px">${fmtDate(s.date)}${s.notes?' · '+s.notes:''}</div>
+          <div style="font-weight:500">${isIn?`${person} paid you`:`You paid ${person}`}</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px">${fmtDate(s.date)}${s.paymentSource?' · '+s.paymentSource:''}${s.notes?' · '+s.notes:''}</div>
         </div>
         <div style="font-weight:700;color:${isIn?'var(--pandan)':'var(--gumamela)'}">${isIn?'+':'−'}${peso(s.amount)}</div>
       </div>`;
@@ -3243,70 +3286,148 @@ function renderPersonDetail(person) {
   }
 
   if (!items.length && !setts.length) {
-    html += '<div class="empty-state"><div class="empty-icon">🤝</div><p>No shared expenses yet with ' + person + '.</p></div>';
+    html += `<div class="empty-state"><div class="empty-icon">🤝</div><p>No shared expenses yet with ${person}.<br>Add a transaction in the Log tab and toggle "Shared with someone?".</p></div>`;
   }
 
   return html;
 }
 
-// ── SHARED MODALS ────────────────────────────────
+function toggleSettledItems(person) {
+  const el  = document.getElementById(`settled-items-${person}`);
+  const btn = document.getElementById(`settled-toggle-${person}`);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (btn) btn.querySelector('span').textContent = open ? '▶' : '▼';
+}
+
+function markItemSettled(itemId) {
+  const item = (D.sharedItems||[]).find(i=>i.id===itemId);
+  if (!item) return;
+  item.settled = true;
+  item.settledAt = today();
+  // Log to settlement history
+  if (!D.settlements) D.settlements=[];
+  D.settlements.push({
+    id: uid(), person: item.person,
+    direction: item.type==='receivable' ? 'they-paid-me' : 'i-paid-them',
+    amount: item.remainingAmount || item.theirAmount,
+    date: today(), notes: 'Item settled: ' + item.description,
+    paymentSource: ''
+  });
+  save();
+  sharedViewPerson = item.person;
+  renderShared();
+}
+
+// ── SETTLEMENT MODAL ─────────────────────────────
 
 let settlementPerson = '';
-
-function openSharedAdd(person) {
-  const sel = document.getElementById('shared-add-person');
-  sel.innerHTML = '<option value="">Select person</option>';
-  (D.sharedPeople||[]).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
-  if (person) sel.value = person;
-  document.getElementById('shared-add-desc').value = '';
-  document.getElementById('shared-add-amount').value = '';
-  document.getElementById('shared-add-date').value = today();
-  document.getElementById('shared-add-notes').value = '';
-  openModal('modal-shared-add');
-}
-
-function saveSharedPayable() {
-  const person = document.getElementById('shared-add-person').value;
-  const desc   = document.getElementById('shared-add-desc').value.trim();
-  const amount = parseFloat(document.getElementById('shared-add-amount').value);
-  const date   = document.getElementById('shared-add-date').value;
-  if (!person||!desc||!amount||amount<=0||!date) { alert('Please fill in all required fields.'); return; }
-  if (!D.sharedItems) D.sharedItems = [];
-  D.sharedItems.push({
-    id: uid(), type: 'payable', person, description: desc,
-    fullAmount: amount, myAmount: 0, theirAmount: amount, splitPct: 100,
-    date, notes: document.getElementById('shared-add-notes').value.trim()
-  });
-  save(); closeModal('modal-shared-add');
-  sharedViewPerson = person; renderShared();
-}
+let settlementBreakdownOpen = false;
 
 function openSettlement(person) {
   settlementPerson = person;
+  settlementBreakdownOpen = false;
   const b = getPersonBalance(person);
   document.getElementById('settlement-title').textContent = `Settle with ${person}`;
-  document.getElementById('settlement-context').textContent =
-    b.net > 0 ? `${person} owes you ${peso(b.net)} net.` : b.net < 0 ? `You owe ${person} ${peso(Math.abs(b.net))} net.` : 'You\'re all settled up!';
+
+  const netText = b.net > 0.005 ? `${person} owes you ${peso(b.net)}`
+    : b.net < -0.005 ? `You owe ${person} ${peso(Math.abs(b.net))}`
+    : 'You\'re all settled up!';
+  document.getElementById('settlement-net-summary').innerHTML =
+    `<strong>${netText}</strong><br><span style="font-size:12px;color:var(--text-light)">${peso(b.theyOweMe)} they owe · ${peso(b.iOweThem)} you owe</span>`;
+
   document.getElementById('settlement-direction').value = b.net >= 0 ? 'they-paid-me' : 'i-paid-them';
-  document.getElementById('settlement-amount').value = Math.abs(b.net) > 0 ? Math.abs(b.net).toFixed(2) : '';
-  document.getElementById('settlement-date').value = today();
-  document.getElementById('settlement-notes').value = '';
+  document.getElementById('settlement-amount').value = '';
+  document.getElementById('settlement-date').value   = today();
+  document.getElementById('settlement-notes').value  = '';
+
+  // Payment source
+  const sel = document.getElementById('settlement-pay-src');
+  sel.innerHTML = '<option value="">Select source</option>';
+  (D.paymentSources||[]).forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
+
+  // Breakdown
+  document.getElementById('settlement-breakdown').style.display = 'none';
+  document.getElementById('breakdown-arrow').textContent = '▶';
+  renderSettlementBreakdown(person);
+
   openModal('modal-settlement');
 }
 
+function toggleSettlementBreakdown() {
+  settlementBreakdownOpen = !settlementBreakdownOpen;
+  document.getElementById('settlement-breakdown').style.display = settlementBreakdownOpen ? 'block' : 'none';
+  document.getElementById('breakdown-arrow').textContent = settlementBreakdownOpen ? '▼' : '▶';
+}
+
+function renderSettlementBreakdown(person) {
+  const items = (D.sharedItems||[]).filter(i=>i.person===person&&!i.settled).sort((a,x)=>a.date.localeCompare(x.date));
+  const el = document.getElementById('settlement-breakdown');
+  if (!items.length) { el.innerHTML = '<p style="font-size:13px;color:var(--text-light);padding:6px 0">No unsettled items.</p>'; return; }
+  el.innerHTML = items.map(item => {
+    const amt   = item.remainingAmount || item.theirAmount;
+    const isRec = item.type === 'receivable';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:10px">
+      <div style="min-width:0;flex:1">
+        <div style="font-size:13px;font-weight:500">${isRec?'📤':'📥'} ${item.description}</div>
+        <div style="font-size:11px;color:var(--text-light)">${fmtDate(item.date)}</div>
+      </div>
+      <div style="font-weight:700;color:${isRec?'var(--pandan)':'var(--gumamela)'};flex-shrink:0">${isRec?'+':'−'}${peso(amt)}</div>
+    </div>`;
+  }).join('');
+}
+
 function saveSettlement() {
-  const amount = parseFloat(document.getElementById('settlement-amount').value);
+  const amtStr = document.getElementById('settlement-amount').value;
   const date   = document.getElementById('settlement-date').value;
-  if (!amount||amount<=0||!date) { alert('Please enter amount and date.'); return; }
+  const dir    = document.getElementById('settlement-direction').value;
+  const paymentSource = document.getElementById('settlement-pay-src').value;
+  const notes  = document.getElementById('settlement-notes').value.trim();
+
+  if (!date) { alert('Please enter a date.'); return; }
+
+  const hasLumpSum = amtStr && parseFloat(amtStr) > 0;
+  const amount     = hasLumpSum ? parseFloat(amtStr) : 0;
+
+  if (!hasLumpSum) {
+    // No amount entered — close modal, nothing logged (items marked via Mark settled buttons)
+    closeModal('modal-settlement');
+    return;
+  }
+
+  // Log settlement to history
   if (!D.settlements) D.settlements = [];
-  D.settlements.push({
-    id: uid(), person: settlementPerson,
-    direction: document.getElementById('settlement-direction').value,
-    amount, date,
-    notes: document.getElementById('settlement-notes').value.trim()
-  });
-  save(); closeModal('modal-settlement');
-  sharedViewPerson = settlementPerson; renderShared();
+  D.settlements.push({ id: uid(), person: settlementPerson, direction: dir, amount, date, paymentSource, notes });
+
+  // Auto-settle oldest items first (by date, ascending = oldest first)
+  // Direction determines which items to settle:
+  // they-paid-me → reduces what they owe me (receivables)
+  // i-paid-them  → reduces what I owe them (payables)
+  const targetType = dir === 'they-paid-me' ? 'receivable' : 'payable';
+  const unsettled  = (D.sharedItems||[])
+    .filter(i => i.person===settlementPerson && i.type===targetType && !i.settled)
+    .sort((a,x) => a.date.localeCompare(x.date)); // oldest first
+
+  let remaining = amount;
+  for (const item of unsettled) {
+    if (remaining <= 0) break;
+    const itemAmt = item.remainingAmount || item.theirAmount;
+    if (remaining >= itemAmt) {
+      item.settled    = true;
+      item.settledAt  = date;
+      remaining      -= itemAmt;
+    } else {
+      // Partial settlement
+      item.remainingAmount = itemAmt - remaining;
+      remaining = 0;
+    }
+  }
+
+  save();
+  closeModal('modal-settlement');
+  sharedViewPerson = settlementPerson;
+  renderShared();
 }
 
 function openClipboard(type) {
